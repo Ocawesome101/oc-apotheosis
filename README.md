@@ -1,6 +1,6 @@
 # Apotheosis
 
-###### /!\\ Do not use this project yet, it is incomplete /!\\
+#### /!\\ Do not use this project yet, it is incomplete /!\\
 
 This repository hosts a build environment for the Apotheosis operating system.
 
