@@ -44,6 +44,8 @@ log $GRN "Assembling"
 log $YLW "Apotheosis coreutils -> build"
 cp -r coreutils/* build/
 mkdir -p build/boot
+log $YLW "init.lua -> build"
+cp paragon/init.lua build/init.lua
 log $YLW "Paragon kernel -> build"
 cp paragon/build/kernel.lua build/boot/paragon
 log $YLW "initfs image -> build"
