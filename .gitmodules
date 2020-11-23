@@ -1,3 +1,6 @@
 [submodule "coreutils"]
 	path = coreutils
 	url = git@github.com:ocawesome101/apotheosis-coreutils
+[submodule "epitome"]
+	path = epitome
+	url = git@github.com:ocawesome101/paragon-epitome
