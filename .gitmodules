@@ -4,3 +4,6 @@
 [submodule "epitome"]
 	path = epitome
 	url = git@github.com:ocawesome101/paragon-epitome
+[submodule "paragon"]
+	path = paragon
+	url = git@github.com:ocawesome101/oc-paragon
