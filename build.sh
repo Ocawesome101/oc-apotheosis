@@ -30,6 +30,7 @@ rm -rf build
 mkdir -p build
 
 log $GRN "Updating sources"
+git submodule update --remote
 update paragon
 update epitome
 update coreutils
