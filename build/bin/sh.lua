@@ -160,7 +160,7 @@ local function execute(str)
           getmetatable(process.info().env).__index[k] = v
         end
       end
-      local ok, ret = pcall(func, table.unpack(ex.cmd, 2))
+      local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
       if (not ok) and ret then
         errno = ret
         io.stderr:write(ret,"\n")

@@ -44,6 +44,8 @@ if ! [ "$1" = "noupdate" ]; then
   update paragon
   update epitome
   update coreutils
+else
+  shift
 fi
 
 log $GRN "Building Paragon kernel"
@@ -65,3 +67,7 @@ cp paragon/build/pinitfs.img build/pinitfs.img
 log $YLW "Epitome init -> build"
 cp -r epitome/build/* build/
 log $GRN "Done."
+
+if [ "$1" = "ocvm" ]; then
+  ocvm ..
+fi

@@ -57,7 +57,9 @@ do
   function fs.makeDirectory(path)
     checkArg(1, path, "string")
     local sdir, dend = path:match("(.+)/(.-)")
-    local node, dir = vfs.resolve(path)
+    sdir = sdir or "/"
+    dend = dend or path
+    local node, dir = vfs.resolve(sdir)
     if not node then
       return nil, dir
     end
@@ -65,7 +67,7 @@ do
   end
 
   function fs.remove(file)
-    checkArg(1, path, "string")
+    checkArg(1, file, "string")
     local node, path = vfs.resolve(file)
     if not node then
       return nil, path
