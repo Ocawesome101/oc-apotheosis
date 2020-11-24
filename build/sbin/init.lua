@@ -58,12 +58,16 @@ do
     checkArg(1, path, "string")
     local sdir, dend = path:match("(.+)/(.-)")
     sdir = sdir or "/"
-    dend = dend or path
+    dend = dend~=""and dend or path
     local node, dir = vfs.resolve(sdir)
     if not node then
       return nil, dir
     end
-    return node:makeDirectory(dir.."/"..dend)
+    local ok, err = node:makeDirectory(dir.."/"..dend)
+    if not ok and err then
+      return nil, err
+    end
+    return true
   end
 
   function fs.remove(file)

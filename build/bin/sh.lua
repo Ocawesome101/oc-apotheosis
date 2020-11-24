@@ -21,7 +21,7 @@ local pgsub = {
   ["\\W"] = function() return os.getenv("PWD"):match("%/(.+)$") end,
   ["\\h"] = function() return os.getenv("HOSTNAME") end,
   ["\\s"] = function() return "sh" end,
-  ["\\v"] = function() return "0.1.0" end,
+  ["\\v"] = function() return "0.6.0" end,
   ["\\a"] = function() return "\a" end
 }
 
@@ -30,6 +30,27 @@ local exit = false
 local builtins = {
   exit = function(n)
     exit = tonumber(n) or true
+  end,
+  echo = print,
+  cd = function(dir)
+    dir = dir or os.getenv("HOME") or "/"
+    local try = paths.resolve(dir)
+    try = try:gsub("[/]+", "/")
+    local info = fs.stat(try)
+    if not info then
+      print(dir..": no such file or directory")
+      os.exit(1)
+    end
+    if not info.isDirectory then
+      print(dir..": not a directory")
+      os.exit(1)
+    end
+    os.setenv("PWD", try)
+    os.exit(0)
+  end,
+  pwd = function()
+    print(os.getenv("PWD"))
+    os.exit(0)
   end
 }
 
@@ -137,7 +158,7 @@ local function execute(str)
     local cmd = ex.cmd[1]
     local shEnv = false
     if builtins[cmd] then
-      shEnv = true
+      shEnv = process.info().env
       func = builtins[cmd]
     else
       local path, err = resolve(cmd)
@@ -156,9 +177,14 @@ local function execute(str)
       io.input(ex.i)
       io.output(ex.o)
       if shEnv then
-        getmetatable(process.info().env).__newindex = function(k,v)
-          getmetatable(process.info().env).__index[k] = v
+        -- shadow tables
+        local shadow = shEnv
+        for k, v in pairs(process.info().env) do
+          os.setenv(k, nil)
         end
+        setmetatable(process.info().env, {__index = shadow, __newindex = function(t, k, v)
+          rawset(shadow, k, v)
+        end})
       end
       local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
       if (not ok) and ret then

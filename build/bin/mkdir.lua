@@ -15,7 +15,7 @@ end
 
 for i=1, #args, 1 do
   local path, err = paths.resolve(args[i], true)
-  if not path then
+  if not path and err then
     print(err)
     os.exit(1)
   end
@@ -24,7 +24,7 @@ for i=1, #args, 1 do
     os.exit(1)
   end
   local ok, err = fs.makeDirectory(path)
-  if not ok then
+  if not ok and err then
     print(err)
     os.exit(1)
   end

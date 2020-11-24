@@ -52,3 +52,5 @@ for i=1, #args, 1 do
     end
   end
 end
+
+os.exit(0)

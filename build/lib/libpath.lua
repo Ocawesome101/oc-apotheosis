@@ -9,7 +9,19 @@ function lib.concat(...)
   for i=1, args.n, 1 do
     checkArg(i, args[i], "string")
   end
-  return "/" .. (table.concat(args, "/"):gsub("([/\\]+)", "/"))
+  return "/" .. (table.concat(args, "/"):gsub("[/\\]+", "/"))
+end
+
+function lib.segments(path)
+  local segs = {}
+  for segm in path:gmatch("[^/]+") do
+    if segm == ".." then
+      table.remove(segs, #segs)
+    elseif segm ~= "." then
+      segs[#segs + 1] = segm
+    end
+  end
+  return segs
 end
 
 function lib.resolve(path, lenient)
@@ -19,13 +31,13 @@ function lib.resolve(path, lenient)
     local pwd = os.getenv("PWD")
     local try = lib.concat(pwd, path)
     if fs.stat(try) or lenient then
-      return try
+      ret = try
     end
-  else
-    return path
+  elseif fs.stat("/"..path) or lenient then
+    ret = "/"..path
   end
-  if lenient then
-    return path
+  if ret then
+    return "/" .. table.concat(lib.segments(ret), "/")
   end
   return nil, path..": file not found"
 end

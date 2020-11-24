@@ -28,7 +28,7 @@ _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0-dev",
   built   = "2020/11/24",
-  builder = "ocawesome101@manjaro-pbp"
+  builder = "ocawesome101@archlinux"
 }
 
 -- kernel i/o
@@ -606,6 +606,9 @@ do
     __index = function(_, k)
       default[k] = function(self, ...)
         if self.dev[k] then
+          --local args={...}
+          --for i=1,#args,1 do args[i]=tostring(args[i])end
+          --kio.dmesg(kio.loglevels.PANIC, "INVOKE::"..k..":"..table.concat(args,","))
           return self.dev[k](...)
         else
           error((string.format("attempt to call field '%s' (a nil value)", k)))

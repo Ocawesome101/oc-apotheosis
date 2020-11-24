@@ -38,13 +38,13 @@ log $GRN "Building Apotheosis"
 rm -rf build
 mkdir -p build
 
-if ! [ "$1" = "noupdate" ]; then
+if [ "$1" = "update" ]; then
   log $GRN "Updating sources"
   git submodule update --remote
+  git pull
   update paragon
   update epitome
   update coreutils
-else
   shift
 fi
 
