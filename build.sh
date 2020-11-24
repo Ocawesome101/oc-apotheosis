@@ -7,6 +7,15 @@ GRN="\e[94m::\e[39m"
 YLW="\e[93m::\e[39m"
 RED="\e[91m::\e[39m"
 
+export KERNEL_VERSION="0.3.0"
+export INIT_VERSION="0.3.0"
+if ! [ "$1" = "release" ]; then
+  export KERNEL_VERSION="$KERNEL_VERSION-dev"
+  export INIT_VERSION="$INIT_VERSION-dev"
+else
+  shift
+fi
+
 log () {
   printf "$1 $2\n"
 }
@@ -29,11 +38,13 @@ log $GRN "Building Apotheosis"
 rm -rf build
 mkdir -p build
 
-log $GRN "Updating sources"
-git submodule update --remote
-update paragon
-update epitome
-update coreutils
+if ! [ "$1" = "noupdate" ]; then
+  log $GRN "Updating sources"
+  git submodule update --remote
+  update paragon
+  update epitome
+  update coreutils
+fi
 
 log $GRN "Building Paragon kernel"
 build paragon

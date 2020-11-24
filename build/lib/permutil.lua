@@ -17,4 +17,41 @@ function lib.tostring(perms)
                        perms & 256 ~= 0 and x or d)
 end
 
+local permN = {
+  owner = {
+    r = 1,
+    w = 2,
+    x = 4
+  },
+  group = {
+    r = 8,
+    w = 16,
+    x = 32
+  },
+  other = {
+    r = 64,
+    w = 128,
+    x = 256
+  }
+}
+
+function lib.hasPermission(perms, p, s)
+  checkArg(1, perms, "number")
+  checkArg(2, p, "string")
+  checkArg(3, s, "string", "nil")
+  if s and not permN[s] then
+    return nil, "invalid permission group subset"
+  end
+  if s then
+    return perms & (permN[s][p]) ~= 0
+  else
+    for _,v in pairs(permN) do
+      if perms & v[p] ~= 0 then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 return lib

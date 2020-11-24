@@ -6,6 +6,7 @@ local libvt = require("libvt")
 local paths = require("libpath")
 local users = require("users")
 local permutil = require("permutil")
+local textutils = require("textutils")
 
 local args, opts = argp.parse(...)
 
@@ -20,9 +21,15 @@ end
 
 local w, h = libvt.getResolution()
 
+local colors = {
+  dir = 94,
+  exec = 92,
+  file = 97,
+}
+
 local dir
 local pwd = os.getenv("PWD")
-if #args == 0 then dir = pwd end
+dir = args[1] or pwd or "/"
 if not dir then dir = pwd or "/" end
 
 local dat = fs.stat(dir)
@@ -39,7 +46,7 @@ end
 local files = fs.list(dir)
 table.sort(files)
 
-local formatted = ""
+local formatted = dir..":"
 
 local maxN = 1
 if not opts.l then
@@ -79,8 +86,31 @@ for i=1, #files, 1 do
                               os.date("%b %e %H:%M"),
                               files[i])
   else
+    local full = paths.concat(dir, files[i] or "")
+    local info, err = fs.stat(full)
+    if not info then
+      print(err)
+      os.exit(1)
+    end
+    local ftype = "file"
+    if info.isDirectory then
+      ftype = "dir"
+    elseif permutil.hasPermission(info.permissions, "x") then
+      ftype = "exec"
+    end
+    ln = string.format("%s\27[%dm%s", ln, colors[ftype], textutils.padRight(files[i], maxN))
+    if #ln >= w then
+      formatted = string.format("%s\n%s", formatted, ln)
+      ln = ""
+    end
   end
 end
+
+if #ln > 0 then
+  formatted = string.format("%s\n%s", formatted, ln)
+end
+
+formatted = formatted .. "\27[39m"
 
 print(formatted)
 

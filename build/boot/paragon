@@ -26,7 +26,7 @@ end
 
 _G._KINFO = {
   name    = "Paragon",
-  version = "0.1.0",
+  version = "0.3.0-dev",
   built   = "2020/11/23",
   builder = "ocawesome101@archlinux"
 }
@@ -620,7 +620,7 @@ do
       return nil, file .. ": file not found"
     end
     return {
-      permissions = self:isReadOnly() and 292 or 438,
+      permissions = self:isReadOnly() and 365 or 511,
       isDirectory = self:isDirectory(file),
       owner       = -1,
       group       = -1,
