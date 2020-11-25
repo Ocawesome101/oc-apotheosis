@@ -18,12 +18,37 @@
 local path = require("libpath")
 local args, opts = require("argp").parse(...)
 
+local filename
 local current = 0
 local buffer = {}
+
+if opts.help then
+  print([[
+Ed is a line-oriented text editor.  It is used to
+create, display, modify, and otherwise manipulate
+text files interactively.  This version of ed
+cannot execute shell commands.  Ed is the
+'standard' text editor in the sense that it is the
+original Unix editor, and thus widely available.
+Ed is also lightweight and faster than most other
+editors.  For most purposes, however, it is
+superseded by modern full-screen editors such as
+VLED or TLE.
+]])
+  os.exit(0)
+end
 
 local patterns = {
   linespec = "^([%d%$]*)(,?)([%d%$]*)(.)()"
 }
+
+local function epr(m)
+  if opts.v or opts.verbose then
+    print(m)
+  else
+    print("?")
+  end
+end
 
 local prompt = false
 local commands = {
@@ -41,6 +66,43 @@ local commands = {
       current = current + 1
       buffer[current] = ln
     end
+  end,
+  ["^c$"] = function(s, e)
+    for i=s, e, 1 do
+      table.remove(buffer, s)
+    end
+    local input = {}
+    while true do
+      local ln = io.read("l")
+      if ln == "." then break end
+      table.insert(input, ln)
+    end
+    for i=#input, 1, -1 do
+      table.insert(buffer, s, input[i])
+    end
+    current = min(#buffer, s + #input)
+  end,
+  ["^d$"] = function(s, e)
+    for i = s, e, 1 do
+      table.remove(buffer, s)
+    end
+  end,
+  ["^e (.+)$"] = function(_, _, arg)
+    local path, err = path.resolve(arg)
+    if not path then
+      epr(err)
+    end
+
+    local file, err = io.open(path, "w")
+    if not file then
+      epr(err)
+    end
+    filename = arg
+    buffer = {}
+    for line in file:lines("l") do
+      buffer[#buffer + 1] = line
+    end
+    file:close()
   end,
   ["^p$"] = function(s, e)
     if s == 0 then
@@ -67,11 +129,12 @@ local function execute(cmd, arg1)
       return v(first, last, cmd:match(k))
     end
   end
-  print "?"
+  epr("bad command")
 end
 
 local file = args[1]
 if file then
+  filename = file
   local handle, err = io.open(file, "r")
   if not handle then
     goto begin
