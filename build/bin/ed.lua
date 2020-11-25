@@ -104,6 +104,39 @@ local commands = {
     end
     file:close()
   end,
+  ["^e$"] = function()
+    if not filename then
+      epr("no filename specified")
+    end
+    return commands["^e (.+)$"](nil, nil, filename)
+  end,
+  ["^f$"] = function()
+    if filename then
+      print(filename)
+    end
+  end,
+  ["^f (.+)"] = function(_, _, arg)
+    filename = arg
+  end,
+  -- g, G, h, H omitted
+  ["^i$"] = function(ln)
+    if ln == 0 then ln = 1 end
+    local n = 0
+    while true do
+      local line = io.read("l")
+      if line == "." then break end
+      table.insert(buffer, ln + n, line)
+      n = n + 1
+    end
+  end,
+  ["^l$"] = function(s, e)
+    if s == 0 then
+      s = 1
+    end
+    for i = s, e, 1 do
+      local p = buffer[i]:gsub("%$","\\$"):gsub("\27","\\27")
+    end
+  end,
   ["^p$"] = function(s, e)
     if s == 0 then
       s = 1
@@ -113,6 +146,54 @@ local commands = {
       print(buffer[i])
     end
     current = e
+  end,
+  ["^r (.+)$"] = function(ln, _, file)
+    local handle, err = io.open(file, "r")
+    if not handle then
+      return epr(err)
+    end
+    local n = 1
+    for line in handle:lines("l") do
+      table.insert(buffer, ln + n, line)
+      n = n + 1
+    end
+    handle:close()
+  end,
+  ["^s/(.+)/(.+)/"] = function(s, e, pat, rep)
+    for i = s, e, 1 do
+      buffer[i] = buffer[i]:gsub(pat, rep) or buffer[i]
+    end
+  end,
+  ["^w (.+)$"] = function(s, e, file)
+    local handle, err = io.open(file, "w")
+    if not handle then
+      return epr(err)
+    end
+    if s == 0 then s = 1 end
+    if e > #buffer then e = #buffer end
+    handle:write(table.concat(buffer, "\n", s, e))
+    handle:close()
+  end,
+  ["^wq (.+)$"] = function(s, e, file)
+    local handle, err = io.open(file, "w")
+    if not handle then
+      return epr(err)
+    end
+    if s == 0 then s = 1 end
+    if e > #buffer then e = #buffer end
+    handle:write(table.concat(buffer, "\n", s, e))
+    handle:close()
+    os.exit(0)
+  end,
+  ["^W (.+)$"] = function(s, e, file)
+    local handle, err = io.open(file, "a")
+    if not handle then
+      return epr(err)
+    end
+    if s == 0 then s = 1 end
+    if e > #buffer then e = #buffer end
+    handle:write(table.concat(buffer, "\n", s, e))
+    handle:close()
   end
 }
 
@@ -120,10 +201,13 @@ local function execute(cmd, arg1)
   local first, comma, last, command, cN = cmd:match(patterns.linespec)
   if first == "$" then first = current end
   if last  == "$" then last  = current end
-  first = tonumber(first) or current
+  first = tonumber(first) or 1
   last = tonumber(last) or current
   if not comma then last = nil end
   cmd = cmd:sub(cN - 1)
+  if #cmd == 0 or cmd == "\n" then
+    print(buffer[first])
+  end
   for k, v in pairs(commands) do
     if cmd:match(k) then
       return v(first, last, cmd:match(k))

@@ -189,7 +189,7 @@ local function execute(str)
       local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
       if (not ok) and ret then
         errno = ret
-        io.stderr:write(ret,"\n")
+        io.stderr:write(ex.cmd[1], ": ", tostring(ret), "\n")
         for i, _ in pairs(pids) do
           process.signal(pids[i], process.signals.SIGKILL)
         end
