@@ -1,0 +1,13 @@
+# lbuildfile
+
+name paragon
+
+macro build lua build.lua -d
+
+# [pce]/ matches paragon/, coreutils/, and epitome/, but nothing else.
+def [pce]/
+cd {self}; {build}; cd ..
+end
+
+def all [pce]/
+end
