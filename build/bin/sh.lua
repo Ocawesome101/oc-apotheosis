@@ -214,7 +214,7 @@ local function execute(str)
   return true
 end
 
-os.setenv("PS1", os.getenv("PS1") or "\\s-\\v$ ")
+os.setenv("PS1", os.getenv("PS1") or "\\s-\\v: \\w$ ")
 
 while true do
   io.write(parse_prompt(os.getenv("PS1")))

@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0-dev",
-  built   = "2020/11/25",
+  built   = "2020/11/29",
   builder = "ocawesome101@manjaro-pbp"
 }
 
@@ -3267,9 +3267,8 @@ function vt.new(gpu, screen)
         if code == keys.lcontrol or code == keys.rcontrol then
           ctrlHeld = true
           add = ""
-        end
-        if code == 211 then -- delete
-          add = add .. "3~"
+        elseif code == 211 then -- delete
+          add = "\127"
         elseif code == 200 then -- up
           add = add .. "A"
         elseif code == 201 then -- page up

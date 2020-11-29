@@ -1,59 +1,60 @@
 -- A more elegant readline from a more civilized age. Less convoluted than 
 -- Monolith's - largely because it never dealt directly with signals. --
 
-local actions = {}
-actions["A"] = function(p, P, h, H)
-  return nil, (h > 0) and (h - 1)
-end
-actions["B"] = function(p, P, h, H)
-  return nil, (h < H) and (h + 1)
-end
-actions["C"] = function(p, P, h, H)
-  return (p > 0) and (p - 1)
-end
-actions["D"] = function(p, P)
-  return (p < P) and (p + 1)
+local function gets(n)
+  io.write("\27(l\27(R")
+  local c = io.read(n or 1)
+  io.write("\27(L\27(r")
+  return c
 end
 
 local function readline(opts)
   checkArg(1, opts, "table", "nil")
-  opts = opts or {}
-  local prompt = opts.prompt or ""
-  local arrows if opts.arrows == nil then arrows = true end
-  local buf = ""
-  local history = opts.history or {}
-  local hist = #history + 1
-  io.write("\27(R\27[l")
+  local buffer = ""
   local pos = 0
+  if opts and opts.prompt then
+    io.write(opts.prompt)
+  end
   while true do
-    io.write(("\27[D"):rep(#buf), "\27[K", buf)
-    history[hist] = buf
-    local c = io.read(1)
-    if c == "\27" then
-      repeat
-        local n = io.read(1)
-        c = c .. n
-      until not n:match("[%d;]")
-      c = c:gsub("\27%[", "")
-      if actions[c] then
-        local npos, nhist = actions[c](pos, #buf, hist, #history)
-        pos = npos or pos
-        if nhist and hist ~= nhist then
-          buf = history[nhist]
+    io.write(("\27[D"):rep(#buffer - pos), buffer, ("\27[D"):rep(pos))
+    local char = gets(1)
+    if char == "\27" then
+      gets(1) -- remove the `['
+      local esc = ""
+      local esc_end
+      while true do
+        local new = gets(1)
+        if new:match("[a-zA-Z]") then
+          esc_end = new
+          break
+        else
+          esc = esc .. new
         end
-        hist = nhist or hist
       end
-    elseif c == "\8" then
-      buf = buf:sub(1, #buf - pos - 1) .. buf:sub(#buf - pos + 1)
-    elseif c == "\13" then
+      if esc_end == "C" then -- right
+        pos = math.max(0, pos - 1)
+      elseif esc_end == "D" then -- left
+        pos = math.min(#buffer, pos + 1)
+      end
+    elseif char == "\8" then -- backspace
+      if #buffer > 0 and pos < #buffer then
+        io.write(("\27[D"):rep(#buffer - pos))
+        buffer = buffer:sub(0, #buffer - pos - 2) .. buffer:sub(-pos)
+        io.write(buffer)
+        io.write(("\27[D"):rep(pos))
+      end
+    elseif char == "\127" then -- delete
+      if #buffer > 0 and pos > 1 then
+        io.write(("\27[D"):rep(#buffer - pos))
+        buffer = buffer:sub(0, #buffer - pos - 1) .. buffer:sub(-pos + 1)
+        io.write(buffer)
+        io.write(("\27[D"):rep(pos))
+      end
+    elseif char == "\n" then
       io.write("\n")
-      break
-    else
-      buf = buf .. c
+      return buffer
     end
   end
-  io.write("\27[0m\27(r\27(L")
-  return buf
 end
 
 return readline
