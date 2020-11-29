@@ -28,7 +28,7 @@ _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0-dev",
   built   = "2020/11/29",
-  builder = "ocawesome101@manjaro-pbp"
+  builder = "ocawesome101@archlinux"
 }
 
 -- kernel i/o
@@ -3268,7 +3268,7 @@ function vt.new(gpu, screen)
           ctrlHeld = true
           add = ""
         elseif code == 211 then -- delete
-          add = "\127"
+          add = add .. "3~"
         elseif code == 200 then -- up
           add = add .. "A"
         elseif code == 201 then -- page up
@@ -3287,7 +3287,8 @@ function vt.new(gpu, screen)
         stream:write((add:gsub("\27", "^")))
       elseif raw then
         if char ~= 0 then
-          local c = unicode.char(char == 13 and 10 or char)
+          local c = (char > 255 and unicode.char or string.char)(char == 13 and
+                     10 or char)
           rb = rb .. c
           stream:write(c == "\8" and "\8 \8" or c)
         end
@@ -3317,8 +3318,17 @@ function vt.new(gpu, screen)
     end
   end
 
+  local function clipboard(sig, kb, data)
+    if keyboards[kb] then
+      for c in data:gmatch(".") do
+        key_down("key_down", kb, c:byte(), 0)
+      end
+    end
+  end
+
   local id1 = k.evt.register("key_down", key_down)
   local id2 = k.evt.register("key_up", key_up)
+  local id3 = k.evt.register("clipboard", clipboard)
 
   -- special character handling functions
   local chars = {
@@ -3366,6 +3376,7 @@ function vt.new(gpu, screen)
     self.closed = true
     k.evt.unregister(id1)
     k.evt.unregister(id2)
+    k.evt.unregister(id3)
     return true
   end
 
