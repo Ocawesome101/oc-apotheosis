@@ -9,4 +9,4 @@
 	url = git@github.com:ocawesome101/oc-paragon
 [submodule "manpages"]
 	path = manpages
-	url = ./manpages/
+	url = git@github.com:ocawesome101/apotheosis-manpages
