@@ -67,9 +67,7 @@ log $GRN "Building Paragon kernel"
 build paragon
 log $GRN "Building Epitome init"
 build epitome
-# coreutils requires no building at this time
-log $GRN "Processing manual pages"
-build manpages
+# coreutils and manpages require no building at this time
 
 log $GRN "Assembling"
 log $YLW "Apotheosis coreutils -> build"
@@ -85,7 +83,7 @@ log $YLW "Epitome init -> build"
 cp -r epitome/build/* build/
 log $YLW "manual pages -> build"
 mkdir -p build/usr/man/
-cp -r manpages/build/* build/usr/man/
+cp -r manpages/man/* build/usr/man/
 log $GRN "Done."
 
 if [ "$OCVM" ]; then

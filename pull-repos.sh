@@ -10,3 +10,4 @@ git pull
 pull paragon
 pull epitome
 pull coreutils
+pull manpages
