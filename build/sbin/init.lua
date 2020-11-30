@@ -3,7 +3,7 @@
 local log = k.io.dmesg
 _G._IINFO = {
   name    = "Epitome",
-  version = "0.3.0-dev",
+  version = "0.3.0",
 }
 
 -- init logger --

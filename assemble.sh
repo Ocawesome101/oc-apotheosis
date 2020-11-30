@@ -7,14 +7,29 @@ GRN="\e[94m::\e[39m"
 YLW="\e[93m::\e[39m"
 RED="\e[91m::\e[39m"
 
+BUILD_OPTS="-d"
+UPDATE=
+OCVM=
 export KERNEL_VERSION="0.3.0"
 export INIT_VERSION="0.3.0"
-if ! [ "$1" = "release" ]; then
-  export KERNEL_VERSION="$KERNEL_VERSION-dev"
-  export INIT_VERSION="$INIT_VERSION-dev"
-else
+while [ "$1" ]; do
+  case "$1" in
+    release)
+      export KERNEL_VERSION="$KERNEL_VERSION-dev"
+      export INIT_VERSION="$INIT_VERSION-dev"
+      ;;
+    update)
+      UPDATE="yes"
+      ;;
+    ocvm)
+      OCVM="yes"
+      ;;
+    manual)
+      BUILD_OPTS=""
+      ;;
+  esac
   shift
-fi
+done
 
 log () {
   printf "$1 $2\n"
@@ -28,8 +43,7 @@ update() {
 
 build () {
   cd $1
-  # to manually configure modules, remove the `-d' from this line.
-  lua build.lua -d
+  lua build.lua $BUILD_OPTS
   cd ..
 }
 
@@ -38,13 +52,14 @@ log $GRN "Building Apotheosis"
 rm -rf build
 mkdir -p build
 
-if [ "$1" = "update" ]; then
+if [ "$UPDATE" ]; then
   log $GRN "Updating sources"
   git submodule update --remote
   git pull
   update paragon
   update epitome
   update coreutils
+  update manpages
   shift
 fi
 
@@ -53,6 +68,8 @@ build paragon
 log $GRN "Building Epitome init"
 build epitome
 # coreutils requires no building at this time
+log $GRN "Processing manual pages"
+build manpages
 
 log $GRN "Assembling"
 log $YLW "Apotheosis coreutils -> build"
@@ -66,8 +83,11 @@ log $YLW "initfs image -> build"
 cp paragon/build/pinitfs.img build/pinitfs.img
 log $YLW "Epitome init -> build"
 cp -r epitome/build/* build/
+log $YLW "manual pages -> build"
+mkdir -p build/usr/man/
+cp -r manpages/build/* build/usr/man/
 log $GRN "Done."
 
-if [ "$1" = "ocvm" ]; then
+if [ "$OCVM" ]; then
   ocvm ..
 fi

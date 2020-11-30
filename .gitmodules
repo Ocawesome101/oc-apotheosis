@@ -7,3 +7,6 @@
 [submodule "paragon"]
 	path = paragon
 	url = git@github.com:ocawesome101/oc-paragon
+[submodule "manpages"]
+	path = manpages
+	url = ./manpages/

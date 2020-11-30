@@ -26,8 +26,8 @@ end
 
 _G._KINFO = {
   name    = "Paragon",
-  version = "0.3.0-dev",
-  built   = "2020/11/29",
+  version = "0.3.0",
+  built   = "2020/11/30",
   builder = "ocawesome101@archlinux"
 }
 
@@ -642,7 +642,10 @@ do
   function drv.create(prx)
     checkArg(1, prx, "table", "string")
     if type(prx) == "string" then prx = component.proxy(prx) end
-    return setmetatable({dev = prx}, {__index = default})
+    return setmetatable({dev = prx,
+                         fstype = "managed",
+                         address = prx.address
+                       }, {__index = default})
   end
 
   kdrv.fs.managed = drv
@@ -735,7 +738,10 @@ do
   function vfs.mounts()
     local ret = {}
     for k, v in pairs(mnt) do
-      ret[v.address] = k
+      ret[v.address] = {
+        path = k,
+        type = v.fstype
+      }
     end
     return ret
   end
@@ -986,7 +992,7 @@ do
     -- raw component restrictions
     sb.component = setmetatable({}, {__index = function(_,m)
       if k.security.users.user() ~= 0 then
-        error(select(2, kio.error("PERMISSION_DENIED")))
+        error(string.format("component.%s: permission denied", m))
       end
       return component[m]
     end, __metatable = {}})
@@ -2882,12 +2888,28 @@ do
     data = data .. (chunk or "")
   until not chunk
   ifs:close(handle)
+  -- partition table driver cache for better memory usage
+  local dcache = {}
   for line in data:gmatch("[^\n]+") do
     -- e.g. to specify the third partition on the OCGPT of a drive:
     -- ocgpt(42d7,3)   /   openfs   rw
     -- managed(5732,1)   /   managed   rw
-    local pspec, fsspec, path, mode = line:match("(.-)%s+(.-)%s+(.-)%s+(.-)")
-    local ptab, addr, a
+    local pspec, path, fsspec, mode = line:match("(.-)%s+(.-)%s+(.-)%s+(.-)")
+    local ptab, caddr, pnum = pspec:match("(%w+)%(([%w%-]+),(%d+)%)")
+    if not k.drv.fs[ptab] then
+      kio.dmesg(kio.loglevels.ERROR, ptab..": missing ptable driver")
+    elseif ptab == "managed" or component.type(caddr) == "filesystem" then
+      if not (ptab == "managed" and component.type(caddr) == "filesystem") then
+        kio.dmesg(kio.loglevels.ERROR, "cannot use managed pspec on drive component")
+      end
+    else
+      dcache[caddr] = dcache[addr] or k.drv.fs[ptab].new(caddr)
+      local drv = dcache[addr]
+      if fsspec ~= "managed" then
+        drv = k.drv.fs[fsspec].new(drv:partition(tonumber(pnum)))
+      end
+      vfs.mount(drv, path)
+    end
   end
   ::eol::
 end
@@ -3425,6 +3447,9 @@ end
 kio.dmesg("ksrc/loadinit.lua")
 
 do
+  if computer.freeMemory() < 8192 then
+    kio.dmesg("NOTE: init may not load; low memory")
+  end
   local init = kargs.init or "/sbin/init.lua"
   local ok, err = loadfile(init, nil, k.sb)
   if not ok then

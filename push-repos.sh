@@ -11,6 +11,7 @@ push () {
 push paragon
 push epitome
 push coreutils
+push manpages
 
 git add .
 git commit

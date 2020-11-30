@@ -3,6 +3,7 @@
 local fs = require("filesystem")
 local motd = require("motd")
 local pipe = require("pipe")
+local shell = require("shell")
 local paths = require("libpath")
 local process = require("process")
 local computer = require("computer")
@@ -25,37 +26,11 @@ local pgsub = {
   ["\\a"] = function() return "\a" end
 }
 
--- TODO: move a bunch of this to a common library
 local exit = false
-local builtins = {
-  exit = function(n)
-    exit = tonumber(n) or true
-  end,
-  echo = print,
-  cd = function(dir)
-    dir = dir or os.getenv("HOME") or "/"
-    local try = paths.resolve(dir)
-    try = try:gsub("[/]+", "/")
-    local info = fs.stat(try)
-    if not info then
-      print(dir..": no such file or directory")
-      os.exit(1)
-    end
-    if not info.isDirectory then
-      print(dir..": not a directory")
-      os.exit(1)
-    end
-    os.setenv("PWD", try)
-    os.exit(0)
-  end,
-  pwd = function()
-    print(os.getenv("PWD"))
-    os.exit(0)
-  end
-}
-
-local function sherr(e)
-  io.stderr:write(e,"\n")
+local oldExit = shell.exit
+function shell.exit(n)
+  exit = n
+  shell.exit = oldExit
 end
 
 local function parse_prompt(prompt)
@@ -66,7 +41,7 @@ local function parse_prompt(prompt)
   return ret
 end
 
-local function split_tokens(str)
+--[[local function split_tokens(str)
   local ret = {}
   for token in str:gmatch("[^%s]+") do
     ret[#ret+1] = token
@@ -212,14 +187,16 @@ local function execute(str)
     return nil, errno
   end
   return true
-end
+end]]
 
 os.setenv("PS1", os.getenv("PS1") or "\\s-\\v: \\w$ ")
 
-while true do
+while not exit do
   io.write(parse_prompt(os.getenv("PS1")))
   local input = io.read("l")
   if input then
-    execute(input)
+    shell.execute(input)
   end
 end
+
+os.exit(exit)
