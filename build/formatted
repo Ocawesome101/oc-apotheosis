@@ -1,0 +1,51 @@
+[97mNAME[39m
+        man - an interface to the system reference manuals
+
+[97mSYNOPSIS[39m
+        [97mman[39m [[93m[39m] [95mpage[39m ...
+
+[97mDESCRIPTION
+        man[39m is the system's manual pager.  Each [95mpage[39m argument given to [97mman[39m is normally the name if a program, utility, or function.  The [95mmanual page[39m associated with each of these arguments is then found and displayed.  A [93msection[39m, if provided, will direct [97mman[39m to look only in that [93msection[39m of the manual.  The default action is to search in all of the available [93msections[39m following a pre-defined order (see [97mDEFAULTS[39m), and to show only the first [95mpage[39m found, even if [95mpage[39m found, even if [95mpage[39m exists in several [93msections[39m.
+
+        The table below shows the [93msection[39m numbers of the manual followed by the types of pages they contain.
+
+        1   Executable programs or shell commands
+        2   System calls (functions provided by the kernel)
+        3   Library calls (functions within program libraries)
+        4   Special files (not present in the Apotheosis system, but standard)
+        5   File formats and conventions, e.g. [93m/etc/passwd[39m)
+        6   Games
+        7   Miscellaneous (including conventions), e.g. [97mfmt[39m([97m7[39m)
+        8   System administration commands (usually only for root)
+        9   Kernel routines [non-standard]
+
+        A manual [95mpage[39m consists of several sections.
+
+        Conventional section names include [97mNAME[39m, [97mSYNOPSIS[39m, [97mCONFIGURATION[39m, [97mDESCRIPTION[39m, [97mOPTIONS[39m, [97mEXIT STATUS[39m, [97mRETURN VALUE[39m, [97mERRORS[39m, [97mENVIRONMENT[39m, [97mFILES[39m, [97mVERSIONS[39m, [97mCONFORMING TO[39m, [97mNOTES[39m, [97mBUGS[39m, [97mEXAMPLE[39m, [97mAUTHORS[39m, and [97mSEE ALSO[39m.
+
+        The following conventions apply to the [97mSYNOPSIS[39m section and can be used as a guide in other sections.
+
+        [97mbold text[39m         type exactly as shown.
+        [95mpurple text[39m       replace with appropriate argument.
+        [[97m-abc[39m]            any or all arguments within [ ] are optional.
+        [97m-a[39m|[97m-b[39m       options delimited by | cannot be used together.
+        [95margument[39m ...      [95margument[39m is repeatable
+        [[95marguments[39m] ...   entire [93mexpression[39m within [ ] is repeatable.
+
+        Exact rendering may vary depending on the output device.  For instance, man will not be able to render colored text when running in a monochrome terminal.
+
+        The command or function illustration is a pattern that should match all possible invocations.  In some cases it is advisable to illustrate several exclusive invocations as is shown in the [97mSYNOPSIS[39m section of this manual page.
+
+[97mEXAMPLES
+        man[39m [95mls[39m
+            Display the manual page for the [95mitem[39m (program) [95mls[39m.
+
+        [97mman[39m [95mfmt[39m.[95m7[39m
+           Display the manual page for convention [95mfmt[39m from section [97m7[39m.  (This is an alternative spelling of "[97mman[39m [95m7 man[39m".)
+
+[97mOVERVIEW[39m
+          Contrary to the 
+
+[97mDEFAULTS[39m
+        The order of sections to search may be overridden by the environment variable $[97mMANSECT[39m.  By default it is as follows:
+[39m

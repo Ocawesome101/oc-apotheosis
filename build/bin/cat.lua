@@ -22,7 +22,7 @@ for i, file in ipairs(args) do
   end
   repeat
     local chunk = handle:read(2048)
-    io.write(chunk)
+    if chunk then io.write(chunk) end
   until not chunk
 end
 

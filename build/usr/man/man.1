@@ -1,0 +1,50 @@
+\b7NAME\c9
+\tman - an interface to the system reference manuals
+
+\b7SYNOPSIS\c9
+\t\b7man\c9 [\b3\c9] \b5page\c9 ...
+
+\b7DESCRIPTION
+\tman\c9 is the system's manual pager.  Each \b5page\c9 argument given to \b7man\c9 is normally the name if a program, utility, or function.  The \b5manual page\c9 associated with each of these arguments is then found and displayed.  A \b3section\c9, if provided, will direct \b7man\c9 to look only in that \b3section\c9 of the manual.  The default action is to search in all of the available \b3sections\c9 following a pre-defined order (see \b7DEFAULTS\c9), and to show only the first \b5page\c9 found, even if \b5page\c9 found, even if \b5page\c9 exists in several \b3sections\c9.
+
+\tThe table below shows the \b3section\c9 numbers of the manual followed by the types of pages they contain.
+
+\t1   Executable programs or shell commands
+\t2   System calls (functions provided by the kernel)
+\t3   Library calls (functions within program libraries)
+\t4   Special files (not present in the Apotheosis system, but standard)
+\t5   File formats and conventions, e.g. \b3/etc/passwd\c9)
+\t6   Games
+\t7   Miscellaneous (including conventions), e.g. \b7fmt\c9(\b77\c9)
+\t8   System administration commands (usually only for root)
+\t9   Kernel routines [non-standard]
+
+\tA manual \b5page\c9 consists of several sections.
+
+\tConventional section names include \b7NAME\c9, \b7SYNOPSIS\c9, \b7CONFIGURATION\c9, \b7DESCRIPTION\c9, \b7OPTIONS\c9, \b7EXIT STATUS\c9, \b7RETURN VALUE\c9, \b7ERRORS\c9, \b7ENVIRONMENT\c9, \b7FILES\c9, \b7VERSIONS\c9, \b7CONFORMING TO\c9, \b7NOTES\c9, \b7BUGS\c9, \b7EXAMPLE\c9, \b7AUTHORS\c9, and \b7SEE ALSO\c9.
+
+\tThe following conventions apply to the \b7SYNOPSIS\c9 section and can be used as a guide in other sections.
+
+\t\b7bold text\c9         type exactly as shown.
+\t\b5purple text\c9       replace with appropriate argument.
+\t[\b7-abc\c9]            any or all arguments within [ ] are optional.
+\t\b7-a\c9|\b7-b\c9       options delimited by | cannot be used together.
+\t\b5argument\c9 ...      \b5argument\c9 is repeatable
+\t[\b5arguments\c9] ...   entire \b3expression\c9 within [ ] is repeatable.
+
+\tExact rendering may vary depending on the output device.  For instance, man will not be able to render colored text when running in a monochrome terminal.
+
+\tThe command or function illustration is a pattern that should match all possible invocations.  In some cases it is advisable to illustrate several exclusive invocations as is shown in the \b7SYNOPSIS\c9 section of this manual page.
+
+\b7EXAMPLES
+\tman\c9 \b5ls\c9
+\t    Display the manual page for the \b5item\c9 (program) \b5ls\c9.
+
+\t\b7man\c9 \b5fmt\c9.\b57\c9
+\t   Display the manual page for convention \b5fmt\c9 from section \b77\c9.  (This is an alternative spelling of "\b7man\c9 \b57 man\c9".)
+
+\b7OVERVIEW\c9
+  \tContrary to the 
+
+\b7DEFAULTS\c9
+\tThe order of sections to search may be overridden by the environment variable $\b7MANSECT\c9.  By default it is as follows:

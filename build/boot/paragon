@@ -27,8 +27,8 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
-  built   = "2020/11/30",
-  builder = "ocawesome101@archlinux"
+  built   = "2020/12/01",
+  builder = "ocawesome101@manjaro-pbp"
 }
 
 -- kernel i/o
@@ -1121,6 +1121,7 @@ do
   function process:info()
     return {
       io = self.io,
+      pid = self.pid,
       env = self.env,
       name = self.name,
       owner = self.owner,
@@ -1306,6 +1307,12 @@ do
         if proc.dead then
           kio.dmesg("process died: " .. proc.pid)
           computer.pushSignal("process_died", proc.pid, proc.name)
+          for k,v in pairs(proc.handles) do
+            pcall(v.close, v)
+          end
+          pcall(proc.io.stdin.close, proc.io.stdin)
+          pcall(proc.io.stdout.close, proc.io.stdout)
+          pcall(proc.io.stderr.close, proc.io.stderr)
           procs[proc.pid] = nil
         end
       end

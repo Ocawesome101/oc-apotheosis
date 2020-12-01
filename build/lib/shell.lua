@@ -18,7 +18,7 @@ end
 function shell.error(cmd, err)
   checkArg(1, cmd, "string")
   checkArg(2, err, "string")
-  io.stderr:write(string.format("\27[31m%s: %s\27[37m\n", cmd, err))
+  io.stderr:write(string.format("%s: %s\n", cmd, err))
 end
 
 shell.builtins = {
@@ -207,7 +207,6 @@ local function split(str, pat)
 end
 
 -- "a | b > c" -> {{cmd = {"a"}, i = <std>, o = <pipe>}, {cmd = {"b"}, i = <pipe>, o = <handle_to_c>}}
-local shellEnv = {cd = true, set = true}
 local function setup(str)
   str = shell.expand(str)
   local tokens = shell.split(str)
@@ -282,12 +281,10 @@ local function execute(str)
     else
       local path, err = shell.resolve(cmd)
       if not path then
-        shell.error("sh", err)
         return nil, err
       end
       local ok, err = loadfile(path)
       if not ok then
-        shell.error("sh", err)
         return nil, err
       end
       func = ok
@@ -304,25 +301,29 @@ local function execute(str)
           rawset(shadow, k, v)                                                                     
         end})
       end
-      local ok, ret = pcall(func, table.unpack(ex.cmd, 2))
+      local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
+      io.stderr:write("DONE",tostring(ok)," ", tostring(ret),"\n")
       if not ok and ret then
         errno = ret
         io.stderr:write(ret,"\n")
         for i, _ in pairs(pids) do
-          process.signal(pids[i], process.signals.kill)
+          process.signal(pids[i], process.signals.SIGKILL)
         end
       end
+      if not io.input().tty then pcall(io.input().close, io.input) end
+      if not io.output().tty then pcall(io.output().close, io.output) end
     end
     table.insert(pids, process.spawn(f, table.concat(ex.cmd, " ")))
   end
+  require("computer").pushSignal("sh_dummy")
   while true do
-    coroutine.yield(0)
     local run = false
     for k, pid in pairs(pids) do
       if process.info(pid) then
         run = true
       end
     end
+    coroutine.yield()
     if errno or not run then break end
   end
   if errno then
@@ -335,7 +336,10 @@ function shell.execute(...)
   local args = table.pack(...)
   local commands = split(shell.expand(table.concat(args, " ")), "[^%;]+")
   for i=1, #commands, 1 do
-    execute(commands[i])
+    local ok, err = execute(commands[i])
+    if not ok then
+      shell.error("sh", err)
+    end
   end
   return true
 end

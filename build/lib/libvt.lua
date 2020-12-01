@@ -5,10 +5,16 @@ local vt = {}
 function vt.setCursor(x, y)
   checkArg(1, x, "number")
   checkArg(2, y, "number")
+  if not (io.stdout.tty) then
+    return
+  end
   io.write(string.format("\27[%d;%dH", y, x))
 end
 
 function vt.getCursor()
+  if not (io.stdin.tty and io.stdout.tty) then
+    return 1, 1
+  end
   io.write("\27[6n\27(l")
   local resp = ""
   repeat
@@ -22,6 +28,9 @@ function vt.getCursor()
 end
 
 function vt.getResolution()
+  if not (io.stdin.tty and io.stdout.tty) then
+    return 1, 1
+  end
   local x, y = vt.getCursor()
   vt.setCursor(9999, 9999)
   local w, h = vt.getCursor()

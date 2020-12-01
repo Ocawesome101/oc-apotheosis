@@ -19,7 +19,12 @@ Sort options alphabetically.
   os.exit(0)
 end
 
-local w, h = libvt.getResolution()
+local w, h
+if not (io.stdin.tty and io.stdout.tty) then
+  w, h = 1, 1
+else
+  w, h = libvt.getResolution()
+end
 
 local colors = {
   dir = 94,
