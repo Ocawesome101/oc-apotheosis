@@ -44,7 +44,40 @@
 \t   Display the manual page for convention \b5fmt\c9 from section \b77\c9.  (This is an alternative spelling of "\b7man\c9 \b57 man\c9".)
 
 \b7OVERVIEW\c9
-  \tContrary to the 
+\tContrary to many implementations of \b7man\c9, this version provides few options.  $\b7MANSECT\c9 support is provided.  $\b7MANPAGER\c9 contains the path to the manpager, which if not set defaults to \b3/bin/more.lua\c9.
+
+\tManual pages are normally stored in \b7fmt\c9(\b71\c9) format under the directory \b3/usr/man\c9.
+
+\tIndividual manual pages are normally written and maintained by the maintainers of the program, function, or other topic that they document.  Because Apotheosis is a complete system, most system functions and programs are documented.
 
 \b7DEFAULTS\c9
 \tThe order of sections to search may be overridden by the environment variable $\b7MANSECT\c9.  By default it is as follows:
+
+\t\t1 8 3 0 2 5 4 9 6 7
+
+\tThe formatted manual page is displayed using a \b3pager\c9.  This can be specified through the command line option \b7-p\c9 or, if \b7-p\c9 was not used, the environment variable $\b7MANPAGER\c9.  In the case of neither being set, \b7man\c9 will fall back to \b3/bin/more.lua\c9.
+
+\b7OPTIONS
+\t-p \b5pager\c9, \b7--pager=\b5pager\c9
+\t\tSpecify which pager to use.  By default, \b7man\c9 uses \b7more\c9, falling back to \b7cat\c9 if \b7more\c9 is not found or otherwise not available.  This option overrides the $\b7MANPAGER\c9 environment variable.
+
+\b7EXIT STATUS
+\t0\c9      Successful program execution.
+
+\t\b71\c9      Usage error.
+
+\t\b72\c9      Operational error.
+
+\b7ENVIRONMENT
+\tMANPAGER\c9
+\t\tIf $\b7MANPAGER\c9 is set, its value is used as the name of the program used to display manual pages.  By default, \b7more\c9 is used, falling back to \b7cat\c9 if \b7more\c9 is not found or is otherwise unavailable.
+
+\b7FILES
+\t\b3/usr/man\c9
+\t\tA global manual page hierarchy.
+
+\b7SEE ALSO
+\tmore\c9(\b71\c9), \b7cat\c9(\b71\c9), \b7fmt\c9(\b71\c9), \b7fmt\c9(\b77\c9), \b7man\c9(\b77\c9)
+
+\b7COPYRIGHT\c9
+\tMost manual page text copyright (c) 2020 man-db maintainers.  Some additions and specific information copyright (c) 2020 Ocawesome101.

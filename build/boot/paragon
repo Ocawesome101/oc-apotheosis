@@ -28,7 +28,7 @@ _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
   built   = "2020/12/01",
-  builder = "ocawesome101@manjaro-pbp"
+  builder = "ocawesome101@archlinux"
 }
 
 -- kernel i/o
@@ -216,6 +216,8 @@ kio.dmesg(kio.loglevels.INFO, "ksrc/buffer.lua")
 
 do
 
+-- Subtly broken.
+
 local buffer = {}
 
 function buffer.new(stream, mode)
@@ -250,7 +252,6 @@ function buffer:read_byte()
     self.rbuf = self.stream:read(self.bufsize) or ""
   end
   local read = self.rbuf:sub(1,1)
-  --require("component").sandbox.log(self.bufsize, read, self.rbuf, #self.rbuf)
   self.rbuf = self.rbuf:sub(2)
   if read == "" or not read then
     return nil
@@ -274,45 +275,46 @@ function buffer:read(fmt)
   if type(fmt) == "number" then
     local ret = ""
     if self.bufsize == 0 then
-      ret = self.stream:read(fmt)
+      return self.stream:read(fmt)
     else
       for i=1, fmt, 1 do
-        local char = self:read_byte()
-        ret = ret .. (char or "")
-      end
-      if ret == "" then
-        return nil
+        ret = ret .. (self:read_byte() or "")
       end
     end
-    return ret, self
+    if ret == "" then
+      return nil
+    end
+    return ret
   else
-    fmt = fmt:gsub("%*", "")
-    fmt = fmt:sub(1,1)
-    -- TODO: support more formats
-    if fmt == "l" or fmt == "L" then
-      local ret = ""
+    local ret = ""
+    local read = 0
+    if fmt == "a" then
       repeat
         local byte = self:read_byte()
-        if byte == "\n" then
-          ret = ret .. (fmt == "L" and byte or "")
-        else
+        ret = ret .. (byte or "")
+        if byte then read = read + 1 end
+      until not byte
+    elseif fmt == "l" then
+      repeat
+        local byte = self:read_byte()
+        if byte ~= "\n" then
           ret = ret .. (byte or "")
         end
-      until byte == "\n" or #byte == 0 or not byte
-      return ret, self
-    elseif fmt == "a" then
-      local ret, rf = "", function()return self:read_byte()end
-      if self.bufsize == 0 then
-        rf = function()return self.stream:read(math.huge)end
-      end
+        if byte then read = read + 1 end
+      until byte == "\n" or not byte
+    elseif fmt == "L" then
       repeat
-        local chunk = rf()
-        ret = ret .. (chunk or "")
-      until (not chunk) or #chunk == 0
-      return ret, self
+        local byte = self:read_byte()
+        ret = ret .. (byte or "")
+        if byte then read = read + 1 end
+      until byte == "\n" or not byte
     else
-      error("bad argument #1 to 'read' (invalid format)")
+      error("bad argument to 'read' (invalid format)")
     end
+    if read > 0 then
+      return ret
+    end
+    return nil
   end
 end
 
@@ -375,6 +377,7 @@ function buffer:close()
 end
 
 kio.buffer = buffer
+
 end
 
 
@@ -3411,6 +3414,7 @@ function vt.new(gpu, screen)
 
   local new = kio.buffer.new(stream, "rw")
   new:setvbuf("no")
+  new.bufferSize = 0
   new.tty = true
   return new
 end

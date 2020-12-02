@@ -20,8 +20,10 @@ for i, file in ipairs(args) do
     print("cat: "..err)
     os.exit(1)
   end
+  -- default buffer size is 512, this might be too small
+  handle.bufferSize = 2048
   repeat
-    local chunk = handle:read(2048)
+    local chunk = handle:read(64)
     if chunk then io.write(chunk) end
   until not chunk
 end

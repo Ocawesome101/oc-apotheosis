@@ -15,6 +15,8 @@
         along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]
 
+error("'ed' is broken right now.  Use 'led' instead.")
+
 local path = require("libpath")
 local args, opts = require("argp").parse(...)
 
@@ -99,7 +101,7 @@ local commands = {
     end
     filename = arg
     buffer = {}
-    for line in file:lines("l") do
+    for line in data:lines("l") do
       buffer[#buffer + 1] = line
     end
     file:close()
