@@ -36,9 +36,6 @@ for char in data:gmatch(".") do
     elseif char:match("[cCbB]") then
       inEsc = 2
       esc = char
-    else
-      io.stderr:write("invalid escape: \\", char, "\n")
-      os.exit(2)
     end
   elseif inEsc == 2 then
     local base = (esc == "c" and 30) or

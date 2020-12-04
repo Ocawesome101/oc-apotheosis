@@ -302,7 +302,7 @@ local function execute(str)
         end})
       end
       local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
-      io.stderr:write("DONE",tostring(ok)," ", tostring(ret),"\n")
+--      io.stderr:write("DONE",tostring(ok)," ", tostring(ret),"\n")
       if not ok and ret then
         errno = ret
         io.stderr:write(ret,"\n")
@@ -343,5 +343,7 @@ function shell.execute(...)
   end
   return true
 end
+
+os.execute = shell.execute
 
 return shell

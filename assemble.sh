@@ -86,6 +86,8 @@ mkdir -p build/usr/man/
 cp -r manpages/man/* build/usr/man/
 log $GRN "Done."
 
+log $RED "Run 'genfstab' under Apotheosis to generate an fstab."
+
 if [ "$OCVM" ]; then
   ocvm ..
 fi

@@ -6,6 +6,7 @@ pull () {
   cd ..
 }
 
+git submodule update --remote
 git pull
 pull paragon
 pull epitome

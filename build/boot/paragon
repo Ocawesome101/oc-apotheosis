@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
-  built   = "2020/12/01",
+  built   = "2020/12/03",
   builder = "ocawesome101@archlinux"
 }
 
@@ -139,8 +139,9 @@ do
   gpu = (gpu and component.type(gpu) == "gpu" and gpu) or component.list("gpu")()
   screen = (screen and component.type(screen) == "screen" and screen) or component.list("screen")()
   gpu = component.proxy(gpu)
+  gpu.bind(screen)
   local y = 0
-  local w, h = gpu.maxResolution()
+  local w, h = assert(gpu.maxResolution())
   gpu.setResolution(w, h)
   gpu.fill(1, 1, w, h, " ")
   gpu.setForeground(0xaaaaaa)
@@ -732,6 +733,10 @@ do
     if mnt[path] then
       return nil, "there is already a filesystem mounted there"
     end
+    if path ~= "/" then
+      local node, spath = vfs.resolve(path)
+      node:makeDirectory(spath)
+    end
     mnt[path] = prx
     return true
   end
@@ -1217,6 +1222,7 @@ do
     local p = procs[current]
     local new = process.new {
       pid = last,
+      name = name,
       parent = current,
       priority = priority or math.huge,
       env = p and table.copy(p.env) or {},
@@ -1333,6 +1339,15 @@ do
     k.sb.process = {}
     function k.sb.process.spawn(a,b,c)
       return k.sched.spawn(a,b,c).pid
+    end
+    
+    -- userspace may want a list of all PIDs
+    function k.sb.process.list()
+      local ret = {}
+      for pid, proc in pairs(procs) do
+        ret[#ret + 1] = pid
+      end
+      return ret
     end
 
     -- we can safely return only a very limited subset of process info
@@ -1512,9 +1527,9 @@ do
 
   function computer.pullSignal(timeout)
     checkArg(1, timeout, "number", "nil")
-    kio.dmesg(kio.loglevels.DEBUG, "evt: ps")
+--    kio.dmesg(kio.loglevels.DEBUG, "evt: ps")
     local sig = table.pack(ps(timeout))
-    kio.dmesg(kio.loglevels.DEBUG, "evt: gotsig")
+--    kio.dmesg(kio.loglevels.DEBUG, "evt: gotsig")
     if sig.n > 0 then
       for k, v in pairs(listeners) do
         if v.sig == sig[1] then
@@ -1526,7 +1541,7 @@ do
       end
     end
 
-    kio.dmesg(kio.loglevels.DEBUG, "evt: did listeners")
+--    kio.dmesg(kio.loglevels.DEBUG, "evt: did listeners")
     return table.unpack(sig)
   end
   do
@@ -2168,9 +2183,9 @@ do
 
   function computer.pullSignal(timeout)
     checkArg(1, timeout, "number", "nil")
-    kio.dmesg(kio.loglevels.DEBUG, "evt: ps")
+--    kio.dmesg(kio.loglevels.DEBUG, "evt: ps")
     local sig = table.pack(ps(timeout))
-    kio.dmesg(kio.loglevels.DEBUG, "evt: gotsig")
+--    kio.dmesg(kio.loglevels.DEBUG, "evt: gotsig")
     if sig.n > 0 then
       for k, v in pairs(listeners) do
         if v.sig == sig[1] then
@@ -2182,7 +2197,7 @@ do
       end
     end
 
-    kio.dmesg(kio.loglevels.DEBUG, "evt: did listeners")
+--    kio.dmesg(kio.loglevels.DEBUG, "evt: did listeners")
     return table.unpack(sig)
   end
   do
@@ -2882,6 +2897,7 @@ if not kargs.keep_initfs then
 end
 
 -- load and parse the fstab
+kio.dmesg("parsing /etc/fstab")
 do
   local ifs, p = vfs.resolve("/etc/fstab")
   if not ifs then
@@ -2900,10 +2916,12 @@ do
   ifs:close(handle)
   -- partition table driver cache for better memory usage
   local dcache = {}
+  vfs.umount("/")
   for line in data:gmatch("[^\n]+") do
     -- e.g. to specify the third partition on the OCGPT of a drive:
     -- ocgpt(42d7,3)   /   openfs   rw
     -- managed(5732,1)   /   managed   rw
+    kio.dmesg(line)
     local pspec, path, fsspec, mode = line:match("(.-)%s+(.-)%s+(.-)%s+(.-)")
     local ptab, caddr, pnum = pspec:match("(%w+)%(([%w%-]+),(%d+)%)")
     if not k.drv.fs[ptab] then
@@ -2911,13 +2929,18 @@ do
     elseif ptab == "managed" or component.type(caddr) == "filesystem" then
       if not (ptab == "managed" and component.type(caddr) == "filesystem") then
         kio.dmesg(kio.loglevels.ERROR, "cannot use managed pspec on drive component")
+      else
+        local drv = k.drv.fs.managed.create(caddr)
+        kio.dmesg("mounting " .. caddr .. " at " .. path)
+        vfs.mount(drv, path)
       end
     else
-      dcache[caddr] = dcache[addr] or k.drv.fs[ptab].new(caddr)
+      dcache[caddr] = dcache[addr] or k.drv.fs[ptab].create(caddr)
       local drv = dcache[addr]
       if fsspec ~= "managed" then
-        drv = k.drv.fs[fsspec].new(drv:partition(tonumber(pnum)))
+        drv = k.drv.fs[fsspec].create(drv:partition(tonumber(pnum)))
       end
+      kio.dmesg("mounting " .. pspec .. " at " .. path)
       vfs.mount(drv, path)
     end
   end
@@ -3058,10 +3081,8 @@ function vt.new(gpu, screen)
     while unicode.len(wb) > 0 do
       checkCursor()
       local ln = unicode.sub(wb, 1, w - cx + 1)
-      if ec then
-        gpu.set(cx, cy, ln)
-        cx = cx + unicode.len(ln)
-      end
+      gpu.set(cx, cy, ln)
+      cx = cx + unicode.len(ln)
       wb = unicode.sub(wb, unicode.len(ln) + 1)
     end
   end
@@ -3316,13 +3337,19 @@ function vt.new(gpu, screen)
           add = add .. "6~"
         end
         rb = rb .. add
-        stream:write((add:gsub("\27", "^")))
+        if ec then stream:write((add:gsub("\27", "^"))) end
       elseif raw then
         if char ~= 0 then
-          local c = (char > 255 and unicode.char or string.char)(char == 13 and
-                     10 or char)
+          local c
+          if ctrlHeld and (char > 31 and char < 127) then
+            c = string.char(char - 96)
+          elseif char == 8 then
+            c = string.char(127)
+          else
+            c = (char > 255 and unicode.char or string.char)(char)
+          end
           rb = rb .. c
-          stream:write(c == "\8" and "\8 \8" or c)
+          if ec then stream:write(c == "\8" and "\8 \8" or c) end
         end
       else
         if char == 8 then
@@ -3331,11 +3358,11 @@ function vt.new(gpu, screen)
             if ec then stream:write("\8 \8") end
           end
         elseif char == 13 then
-          stream:write("\n")
+          if ec then stream:write("\n") end
           rb = rb .. "\n"
         elseif char ~= 0 then
           local c = unicode.char(char)
-          stream:write(c)
+          if ec then stream:write(c) end
           rb = rb .. c
         end
       end
@@ -3440,6 +3467,11 @@ function _G.loadfile(file, mode, env)
   local data = handle:read("a")
   handle:close()
   return load(data, "="..file, mode or "bt", env or k.sb or _G)
+end
+
+function _G.dofile(file)
+  checkArg(1, file, "string")
+  return assert(loadfile(file))()  
 end
 
 

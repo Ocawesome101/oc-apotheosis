@@ -25,7 +25,7 @@ if k.io.gpu then
     end
     return io.write(string.format("\27[%dm* \27[97m%s\n", col + 60, msg))
   end
-  k.io.hide()
+  --k.io.hide()
 end
 
 log(34, string.format("Welcome to \27[92m%s \27[97mversion \27[94m%s\27[97m", _IINFO.name, _IINFO.version))
@@ -309,6 +309,25 @@ do
   end
 end
 
+
+-- run scripts from /etc/epitome/scripts --
+
+do
+  local script_path = "/etc/epitome/scripts"
+  local fs = require("filesystem")
+
+  local files = fs.list(script_path)
+  table.sort(files)
+  for i=1, #files, 1 do
+    log(34, files[i])
+    local ok, err = pcall(dofile, script_path .. "/" .. files[i])  
+    if not ok and err then
+      io.write("\27[A\27[G")
+      log(91, files[i].. ":" .. err)
+      while true do coroutine.yield() end
+    end
+  end
+end
 
 -- load getty --
 

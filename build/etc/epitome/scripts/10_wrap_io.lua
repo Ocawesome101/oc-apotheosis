@@ -11,3 +11,12 @@ function io.open(file, mode)
   end
   return old_open(full_path, mode or "r")
 end
+
+function io.lines(file, pat)
+  checkArg(1, file, "string")
+  local handle, err = io.open(file)
+  if not handle then
+    return nil, err
+  end
+  return handle:lines(pat)
+end
