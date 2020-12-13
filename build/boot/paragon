@@ -27,8 +27,8 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
-  built   = "2020/12/08",
-  builder = "ocawesome101@manjaro-pbp"
+  built   = "2020/12/13",
+  builder = "ocawesome101@archlinux"
 }
 
 -- kernel i/o
@@ -1073,6 +1073,11 @@ do
         stderr = try_get(args, "stderr")  -- standard error
       }
     }
+
+    new.io.input = new.io.stdin
+    new.io.output = new.io.stdout
+    new.env.USER = new.env.USER or "root"
+    new.env.UID = new.env.UID or 0
   
     for k,v in pairs(args) do new[k] = v end
     return setmetatable(new, {__index = process})
@@ -1140,7 +1145,9 @@ do
       sighandlers = self.sighandlers,
       stdin = process.stdin, -- convenience
       stdout = process.stdout,
-      stderr = process.stderr
+      stderr = process.stderr,
+      input = process.input,
+      output = process.output
     }
   end
 
@@ -1167,26 +1174,26 @@ do
   --   See `process:handle`.
   process.kill = process.handle
 
-  -- process:stdin([file:table]): table
-  --   If `file` is provided and is valid, set the process's standard input to `file`. Always returns the current standard input.
-  function process:stdin(file)
+  -- process:input([file:table]): table
+  --   If `file` is provided and is valid, set the process's io.input to `file`. Always returns the current standard input.
+  function process:input(file)
     checkArg(1, file, "table", "nil")
     if file and file.read and file.write and file.close then
-      pcall(self.io.stdin.close, self.io.stdin)
-      self.io.stdin = file
+      pcall(self.io.input.close, self.io.input)
+      self.io.input = file
     end
-    return self.io.stdin
+    return self.io.input
   end
 
-  -- process:stdout([file:table]): table
-  --   Like `process:stdin()`, but operates on the standard output.
-  function process:stdout(file)
+  -- process:output([file:table]): table
+  --   Like `process:stdin()`, but operates on the output.
+  function process:output(file)
     checkArg(1, file, "table", "nil")
     if file and file.read and file.write and file.close then
-      pcall(self.io.stdout.close, self.io.stdout)
-      self.io.stdout = file
+      pcall(self.io.output.close, self.io.output)
+      self.io.output = file
     end
-    return self.io.stdout
+    return self.io.output
   end
 
   -- process:stderr([file:table]): table
@@ -1198,6 +1205,14 @@ do
       self.io.stderr = file
     end
     return self.io.stderr
+  end
+
+  function process:stdin()
+    return self.io.stdin
+  end
+
+  function process:stdout()
+    return self.io.stdout
   end
 end
 
@@ -1214,7 +1229,7 @@ do
 
   -- k.sched.spawn(func:function, name:string[, priority:number]): table
   --   Spawns a process, adding `func` to its threads.
-  function s.spawn(func, name, priority, INTERNAL_UNDOCUMENTED_ARGUMENT)
+  function s.spawn(func, name, priority, iua)
     checkArg(1, func, "function")
     checkArg(2, name, "string")
     checkArg(3, priority, "number", "nil")
@@ -1226,11 +1241,13 @@ do
       parent = current,
       priority = priority or math.huge,
       env = p and table.copy(p.env) or {},
-      stdin = p and p.io.stdin or {},
-      stdout = p and p.io.stdout or {},
+      stdin = p and p.io.input or {},
+      stdout = p and p.io.output or {},
       stderr = p and p.io.stderr or {},
-      owner = INTERNAL_UNDOCUMENTED_ARGUMENT
+      owner = iua
     }
+    new.env.UID = new.owner
+    new.env.USER = k.security.users.userByID(new.owner)
     new:addThread(func)
     procs[new.pid] = new
     return new -- the userspace function will just return the PID
@@ -1482,20 +1499,20 @@ do
 
   function io.input(file)
     local info = k.sched.getinfo()
-    return info:stdin(file)
+    return info:input(file)
   end
 
   function io.output(file)
     local info = k.sched.getinfo()
-    return info:stdout(file)
+    return info:output(file)
   end
 
   function io.read(...)
-    return io.stdin:read(...)
+    return io.input():read(...)
   end
 
   function io.write(...)
-    return io.stdout:write(...)
+    return io.output():write(...)
   end
 
   k.hooks.add("sandbox", function()

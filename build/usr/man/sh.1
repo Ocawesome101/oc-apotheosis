@@ -1,0 +1,36 @@
+\b7NAME\c9
+\tsh - shell, the standard command language interpreter
+
+\b7SYNOPSIS
+\tsh
+
+DESCRIPTION
+\t\c9sh is the default command interpreter for the Apotheosis system.  It supports a subset of features from the standard Bourne shell.
+
+\t\b7sh\c9 currently supports:
+
+\t\t- Redirection to and from files through use of the \b7>\c9/\b7>>\c9 and \b7<\c9 operators respectively - a single \b7>\c9 will overwrite or create a file, and \b7>>\c9 will append to a file;
+
+\t\t- Pipes, in the same manner as the Bourne shell, in the form \b7programA | programB\c9, to redirect the standard output from \b7programA\c9 to the standard input of \b7programB\c9;
+
+\t\t- Command separation with semicolons in the form \b7programA; programB\c9, which will run \b7programA\c9 and \b7programB\c9 independently of one another;
+
+\t\t- Environment variable declaration through the \b7set\c9 builtin with \b7set VARIABLE=value\c9;
+
+\t\t- Command aliases, declared through the \b7alias\c9 builtin with the same syntax as \b7set\c9.
+
+\tAll tokens excepting the semicolon (\b7;\c9) must be separated with a space in order to be properly interpreted.  Tokens containing spaces must be enclosed in single quotes (\b7'\c9).
+
+\tAs the Lua scripting language is the natively supported language of OpenComputers, as well as both easier to learn and more powerful than Bourne shell scripting, the Apotheosis shell does not support advanced shell scripts.
+
+\b7NOTES\c9
+\tThe Monolith implementation of \b7sh\c9 differs only very slightly from the Apotheosis version.  Much of the codebase is identical excepting some system-specific API.
+
+\b7AUTHOR\c9
+\tWritten by Ocawesome101.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO
+\tlua\c9(\b71\c9), \b7lua\c9(\b77\c9)

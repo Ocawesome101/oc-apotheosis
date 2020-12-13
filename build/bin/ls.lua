@@ -13,8 +13,9 @@ local args, opts = argp.parse(...)
 if opts.help then
   print([[
 Usage: ls [OPTION]... [FILE]...
-List information about FILEs (the current directory by default).
-Sort options alphabetically.
+List information about FILEs (the current
+directory by default). Sort entries
+alphabetically.
 ]])
   os.exit(0)
 end
@@ -35,6 +36,13 @@ local colors = {
 local pwd = os.getenv("PWD")
 if #args == 0 then
   args[1] = pwd
+end
+
+local function esc(n)
+  if io.stdout.tty and not opts.nocolor then
+    return string.format("\27[%dm", n)
+  end
+  return ""
 end
 
 local formatted = ""
@@ -96,7 +104,7 @@ for i=1, #args, 1 do
       elseif permutil.hasPermission(info.permissions, "x") then
         ftype = "exec"
       end
-      formatted = string.format("%s%s%s %s %s %8d %s \27[%dm%s\27[39m\n",
+      formatted = string.format("%s%s%s %s %s %8d %s %s%s\27[39m\n",
                               formatted,
                               info.isDirectory and "d" or "-",
                               permutil.tostring(info.permissions),
@@ -104,7 +112,7 @@ for i=1, #args, 1 do
                               users.groupByID(info.group),
                               info.size,
                               os.date("%b %e %H:%M"),
-                              colors[ftype],
+                              esc(colors[ftype]),
                               files[i])
     else
       local full = paths.concat(dir, files[i] or "")

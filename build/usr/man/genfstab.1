@@ -1,0 +1,19 @@
+\b7NAME\c9
+\tgenfstab - interactively generate an fstab
+
+\b7SYNOPSIS\c9
+\tgenfstab [\b5OPTION\c9]...
+
+\b7DESCRIPTION
+\tgenfstab\c9 is a utility used to generate an \b7fstab\c9, such as \b3/etc/fstab\c9.  Optionally saves it to \b3/etc/fstab\c9, or can be redirected to said file in the shell.
+
+\t\b7genfstab\c9 will present slightly different prompts to the user depending on whether a drive is managed or unmanaged.  If the drive is managed, \b7genfstab\c9 will only prompt for a mount path.  If the drive is unmanaged, \b7genfstab\c9 will prompt for a partition table format, number of partitions, mount path, and a filesystem type.  In the interest of avoiding accidental errors, it will then prompt the user to ensure that the generated entry looks correct.
+
+\b7NOTES\c9
+\tAll prompts are written to the standard error stream so as not to interfere with redirected output.  Answers to the prompts are read from standard input and as such may be piped in from a file or another program.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO
+\tfstab\c9(\b75\c9), \b7fstab\c9(\b79\c9)

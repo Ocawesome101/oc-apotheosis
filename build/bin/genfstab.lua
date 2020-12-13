@@ -53,7 +53,7 @@ local function add_unmanaged(addr)
     io.stderr:write("Please enter the filesystem type for ",addr,"(",npart.."","): ")
     fsspec = io.read()
     new = new .. " " .. path .. " " .. fsspec
-    io.stderr:write("Does this look correct?: ", new)
+    io.stderr:write("Does this look correct? [Y/n]: ", new)
     if io.read() == "n" then
       goto retry
     end

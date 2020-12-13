@@ -1,0 +1,16 @@
+\b7NAME\c9
+\tlogin - begin session on the system
+
+\b7SYNOPSIS
+\tlogin
+
+DESCRIPTION
+\tlogin\c9 is started by \b7getty\c9(\b78\c9) for use when signing onto a system.  It should not be run from the shell.
+
+\t\b7login\c9 uses the kernel-provided \b7users\c9(\b72\c9) API for user authentication.  On successful log-in, the environment variables $\b7HOME\c9, $\b7USER\c9, and $\b7SHELL\c9 are set according to the user's entry in \b3/etc/passwd\c9 before launching the shell.  If the shell fails to start or the provided credentials are invalid, \b7login\c9 will display the appropriate error message and wait five seconds before continuing.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO
+\tpasswd\c9(\b71\c9), \b7passwd\c9(\b75\c9), \b7getty\c9(\b78\c9)

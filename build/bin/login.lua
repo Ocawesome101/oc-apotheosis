@@ -1,5 +1,10 @@
 -- login --
 
+if tonumber(os.getenv("UID")) ~= 0 then
+  io.stderr:write("cannot function when non-root\b")
+  os.exit(255)
+end
+
 local users = require("users")
 local hostname = require("hostname")
 

@@ -1,0 +1,21 @@
+\b7NAME\c9
+\tmount - mount a filesystem
+
+\b7SYNOPSIS\c9
+\tmount
+
+\tmount \b5device\c9 \b5mountpoint\c9
+
+\b7DESCRIPTION\c9
+\tAll files accessible in a Unix system are arranged in one big tree, the file hierarchy, rooted at \b3/\c9.  The \b7mount\c9 command serves to attach the filesystem found on some device to the big file tree.  Conversely, the \b7umount\c9(\b71\c9) command will detach it again.  The filesystem is used to control how data is stored on the device or provided in a virtual way by network or other services.
+
+\tThe standard form of the \b7mount\c9 command is:
+
+\t\tmount \b5device dir\c9
+
+\tThis tells the kernel to attach the filesystem found on \b5device\c9 at the directory \b5dir\c9.  Root permissions are not necessary to mount a filesystem.
+
+\tIf \b7mount\c9 is called with no arguments, it will print a list of each currently mounted filesystem, its mount point, and its filesystem type.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.

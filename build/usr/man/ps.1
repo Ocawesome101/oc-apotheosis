@@ -1,0 +1,26 @@
+\b7NAME\c9
+\tps - report a snapshot of the current processes
+
+\b7SYNOPSIS\c9
+\tps [\b5options\c9]
+
+\b7DESCRIPTION
+\tps\c9 displays information about a selection of the active processes.
+
+\tThis version of \b7ps\c9 accepts no options.
+
+\t\b7ps\c9 displays all processes running on the system.  It displays the process ID (pid=PID), the cumulated CPU time in seconds (time=TIME), and the executed command (ucmd=COMMAND).  Output is sorted by order of process ID.
+
+\b7NOTES\c9
+\tThis \b7ps\c9 uses the \b7process\c9(\b72\c9) API provided by the kernel.  This \b7ps\c9 does not need any special privileges to run.  Do not give this \b7ps\c9 any special permissions.
+
+\tCPU time is computed in the scheduler as the amount of time the process's coroutine has spent running.
+
+\b7SEE ALSO
+\tkill\c9(\b71\c9)
+
+\b7AUTHOR
+\tps\c9 was written for Apotheosis by Ocawesome101.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
