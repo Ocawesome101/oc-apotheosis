@@ -6,6 +6,15 @@ local fs = require("filesystem")
 
 local args, opts = argp.parse(...)
 
+if opts.help then
+  io.stderr:write([[
+Usage:
+ mount
+ mount <source> <directory>
+]])
+  os.exit(0)
+end
+
 if #args == 0 then
   local mounts = fs.mounts()
   for addr, data in pairs(mounts) do
