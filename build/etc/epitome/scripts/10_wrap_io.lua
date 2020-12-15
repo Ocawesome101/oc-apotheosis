@@ -13,10 +13,14 @@ function io.open(file, mode)
 end
 
 function io.lines(file, pat)
-  checkArg(1, file, "string")
-  local handle, err = io.open(file)
-  if not handle then
-    return nil, err
+  local handle, err
+  if not file then handle = io.input()
+  else
+    checkArg(1, file, "string")
+    handle, err = io.open(file)
+    if not handle then
+      return nil, err
+    end
   end
   return handle:lines(pat)
 end

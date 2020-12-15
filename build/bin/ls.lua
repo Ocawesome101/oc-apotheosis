@@ -11,7 +11,7 @@ local textutils = require("textutils")
 local args, opts = argp.parse(...)
 
 if opts.help then
-  print([[
+  io.stderr:write([[
 Usage: ls [OPTION]... [FILE]...
 List information about FILEs (the current
 directory by default). Sort entries
@@ -20,12 +20,7 @@ alphabetically.
   os.exit(0)
 end
 
-local w, h
-if not (io.stdin.tty and io.stdout.tty) then
-  w, h = 1, 1
-else
-  w, h = libvt.getResolution()
-end
+local w, h = libvt.getResolution()
 
 local colors = {
   dir = 94,
@@ -39,7 +34,7 @@ if #args == 0 then
 end
 
 local function esc(n)
-  if io.stdout.tty and not opts.nocolor then
+  if io.output().tty and not opts.nocolor then
     return string.format("\27[%dm", n)
   end
   return ""
@@ -58,12 +53,12 @@ for i=1, #args, 1 do
 
   local dat = fs.stat(dir)
   if not dat then
-    print(dir..": no such directory")
+    io.stderr:write(dir, ": no such directory\n")
     os.exit(1)
   end
 
   if not dat.isDirectory then
-    print(dir..": not a directory")
+    io.stderr:write(dir, ": not a directory\n")
     os.exit(1)
   end
 
@@ -95,7 +90,7 @@ for i=1, #args, 1 do
       local full = paths.concat(dir, files[i] or "")
       local info, err = fs.stat(full)
       if not info then
-        print(err)
+        io.stderr:write(err, "\n")
         os.exit(1)
       end
       local ftype = "file"
@@ -118,7 +113,7 @@ for i=1, #args, 1 do
       local full = paths.concat(dir, files[i] or "")
       local info, err = fs.stat(full)
       if not info then
-        print(err)
+        io.stderr:write(err, "\n")
         os.exit(1)
       end
       local ftype = "file"

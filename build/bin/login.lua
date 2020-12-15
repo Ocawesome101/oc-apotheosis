@@ -1,7 +1,7 @@
 -- login --
 
 if tonumber(os.getenv("UID")) ~= 0 then
-  io.stderr:write("cannot function when non-root\b")
+  io.stderr:write("login: cannot function when non-root!\n")
   os.exit(255)
 end
 
@@ -34,6 +34,8 @@ while true do
   if not ok then
     print("error in shell: " .. err)
   else
+    io.write("\n\n")
+    io.write(require("motd").random(), "\n")
     local done, ret = users.spawnAs(uid, pass, ok, "/bin/sh.lua")
     if not done then
       print("error in shell: " .. ret)

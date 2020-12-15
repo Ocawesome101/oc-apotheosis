@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
-  built   = "2020/12/13",
+  built   = "2020/12/14",
   builder = "ocawesome101@archlinux"
 }
 
@@ -78,7 +78,7 @@ function _pipe:read(n)
   if type(n) == "string" then n = n:gsub("%*", "") end
   if self.closed and #self.buf == 0 then return nil end
   if n == "l" then
-    while not self.buf:find("\n") and self.strict do
+    while (not self.buf:find("\n")) and self.strict do
       coroutine.yield()
     end
     local s = self.buf:find("\n") or #self.buf
@@ -91,7 +91,6 @@ function _pipe:read(n)
     return ret
   end
   while #self.buf < n and self.strict do
-    kio.dmesg("PIPEYIELD")
     coroutine.yield()
   end
   n = math.min(n, #self.buf)
@@ -102,11 +101,16 @@ end
 
 -- _pipe:write(data:string): boolean or nil, string
 --   Write `data` to the pipe stream.
-function _pipe:write(data)
+function _pipe:write(...)
+  local args = table.pack(...)
+  for i=1, args.n, 1 do
+    args[i] = tostring(args[i])
+  end
+  local write = table.concat(args)
   if self.closed then
     return kio.error("BROKEN_PIPE")
   end
-  self.buf = self.buf .. data
+  self.buf = self.buf .. write
   return true
 end
 
@@ -122,14 +126,22 @@ function _pipe:close()
   self.closed = true
 end
 
+-- _pipe:lines(fmt:string): function
+--   Iterate over all lines in the pipe data.
+function _pipe:lines(fmt)
+  return function()
+    return self:read(fmt or "l")
+  end
+end
+
 -- kio.pipe(): table
 --   Create a pipe.
 function kio.pipe()
-  return setmetatable({buf = ""}, {__index = _pipe})
+  return setmetatable({buf = "", strict = true}, {__index = _pipe}), "rw"
 end
 
 -- temporary log buffer until we get a root filesystem
---local dmesg = {}
+kio.__dmesg = {buffer={}}
 
 local console
 do
@@ -146,7 +158,7 @@ do
   gpu.fill(1, 1, w, h, " ")
   gpu.setForeground(0xaaaaaa)
   gpu.setBackground(0x000000)
-  console = function(msg)
+  local _console = function(msg)
     if y == h then
       gpu.copy(1, 1, w, h, 0, -1)
       gpu.fill(1, h, w, 1, " ")
@@ -156,8 +168,16 @@ do
     gpu.set(1, y, msg)
   end
 
+  function kio.__dmesg:write(msg)
+    table.insert(self.buffer, msg)
+  end
+
   kio.gpu = gpu
-  kio.console = console
+  kio.console = function(...)
+    kio.__console(...)
+    return kio.__dmesg:write(...)
+  end
+  kio.__console = _console
 end
 
 -- kio.error(err:string): nil, string
@@ -175,6 +195,8 @@ function kio.dmesg(level, msg)
     local mesg = string.format("[%5.05f] [%s] %s", computer.uptime(), kio.levels[level], line)
     if level >= kargs.loglevel then
       kio.console(mesg)
+    else
+      kio.__dmesg:write(mesg)
     end
 --    table.insert(dmesg, mesg)
   end
@@ -216,8 +238,6 @@ kio.dmesg(kio.loglevels.INFO, string.format("Starting %s version %s - built %s b
 kio.dmesg(kio.loglevels.INFO, "ksrc/buffer.lua")
 
 do
-
--- Subtly broken.
 
 local buffer = {}
 
@@ -359,6 +379,7 @@ end
 function buffer:flush()
   if self.mode.w then
     self.stream:write(self.wbuf)
+    self.wbuf = ""
   end
   return true, self
 end
@@ -373,6 +394,7 @@ end
 
 function buffer:close()
   self:flush()
+  self.stream:close()
   self.closed = true
   return true
 end
@@ -1179,7 +1201,7 @@ do
   function process:input(file)
     checkArg(1, file, "table", "nil")
     if file and file.read and file.write and file.close then
-      pcall(self.io.input.close, self.io.input)
+      if not self.io.input.tty then pcall(self.io.input.close, self.io.input) end
       self.io.input = file
     end
     return self.io.input
@@ -1190,7 +1212,7 @@ do
   function process:output(file)
     checkArg(1, file, "table", "nil")
     if file and file.read and file.write and file.close then
-      pcall(self.io.output.close, self.io.output)
+      if not self.io.output.tty then pcall(self.io.output.close, self.io.output) end
       self.io.output = file
     end
     return self.io.output
@@ -1201,7 +1223,7 @@ do
   function process:stderr(file)
     checkArg(1, file, "table", "nil")
     if file and file.read and file.write and file.close then
-      pcall(self.io.stderr.close, self.io.stderr)
+      if not io.stderr.tty then pcall(self.io.stderr.close, self.io.stderr) end
       self.io.stderr = file
     end
     return self.io.stderr
@@ -1336,9 +1358,6 @@ do
           for k,v in pairs(proc.handles) do
             pcall(v.close, v)
           end
-          pcall(proc.io.stdin.close, proc.io.stdin)
-          pcall(proc.io.stdout.close, proc.io.stdout)
-          pcall(proc.io.stderr.close, proc.io.stderr)
           procs[proc.pid] = nil
         end
       end
@@ -1454,6 +1473,18 @@ do
         return info:stderr()
       end
     end,
+    __newindex = function(self, key, value)
+      local info = k.sched.getinfo()
+      if key == "stdin" then
+        info.io.stdin = value
+      elseif key == "stdout" then
+        info.io.stdout = value
+      elseif key == "stderr" then
+        info.io.stderr = value
+      else
+        rawset(self, key, value)
+      end
+    end,
     __metatable = {}
   }
   k.iomt = iomt
@@ -1497,14 +1528,22 @@ do
     return kio.buffer.new(stream, mode)
   end
 
+  local function open(f, m)
+    if type(f) == "string" then
+      return io.open(f, m)
+    else
+      return f
+    end
+  end
+
   function io.input(file)
     local info = k.sched.getinfo()
-    return info:input(file)
+    return info:input(open(file, "r"))
   end
 
   function io.output(file)
     local info = k.sched.getinfo()
-    return info:output(file)
+    return info:output(open(file, "w"))
   end
 
   function io.read(...)
@@ -1521,7 +1560,7 @@ do
       for i=1, args.n, 1 do
         args[i] = tostring(args[i])
       end
-      io.write(table.concat(args, "\t") .. "\n")
+      io.stdout:write(table.concat(args, "\t") .. "\n")
       return true
     end
   end)
@@ -2963,6 +3002,28 @@ do
   end
   ::eol::
 end
+
+-- FINALLY proper system logging
+do
+  -- comment this out for debugging purposes
+  goto no_log
+  local LOG_PATH = "/boot/syslog"
+  local logHandle = assert(io.open(LOG_PATH, "w"))
+  
+  kio.dmesg("bringing up proper system logging")
+
+  function kio.__dmesg:write(msg)
+    logHandle:write(msg, "\n")
+    logHandle:flush()
+  end
+
+  for i=1, #kio.__dmesg.buffer, 1 do
+    kio.__dmesg:write(kio.__dmesg.buffer[i])
+  end
+  kio.__dmesg.buffer = nil
+end
+
+::no_log::
 
 -- TTY driver --
 

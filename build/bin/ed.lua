@@ -15,7 +15,6 @@
         along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]
 
-error("'ed' is broken right now.  Use 'led' instead.")
 
 local path = require("libpath")
 local args, opts = require("argp").parse(...)
@@ -25,7 +24,7 @@ local current = 0
 local buffer = {}
 
 if opts.help then
-  print([[
+  io.stderr:write([[
 Ed is a line-oriented text editor.  It is used to
 create, display, modify, and otherwise manipulate
 text files interactively.  This version of ed
@@ -39,6 +38,8 @@ VLED or TLE.
 ]])
   os.exit(0)
 end
+
+error("'ed' is broken right now.  Use 'led' instead.")
 
 local patterns = {
   linespec = "^([%d%$]*)(,?)([%d%$]*)(.)()"

@@ -7,14 +7,16 @@ local component = require("component")
 local args, opts = argp.parse(...)
 
 if opts.help then
-  print([[
+  io.stderr:write([[
 Usage: genfstab [OPTION]...
 Generates an fstab.  Optionally saves it to
-/etc/fstab.]])
+/etc/fstab.
+]])
+  os.exit(0)
 end
 
 if users.user() ~= 0 then
-  print("This program must be run as root!")
+  io.stderr:write("This program must be run as root!\n")
   os.exit(1)
 end
 
@@ -94,6 +96,6 @@ while true do
 end
 
 final = final:gsub("\n+", "\n"):sub(1,-2)
-print(final)
+io.write(final)
 
 os.exit(0)

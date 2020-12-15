@@ -1,0 +1,56 @@
+\b7NAME\c9
+\ttle - The Lua Editor
+
+\b7SYNOPSIS\c9
+\ttle
+
+\ttle [\b5FILE\c9]
+
+\b7DESCRIPTION\c9
+\t\b7tle\c9 is the default and recommended text editor for the Apotheosis system.  It facilitates the creation and modification of text files.  \b7tle\c9 is similar to GNU Nano, but with different keybinds and a few more advanced features.
+
+\t\b7tle\c9 supports syntax highlighting through the use of Lua scripts in \b3/usr/share/TLE/<file_extension>.lua\c9.  For example, the default Lua highlighting is located at \b3/usr/share/TLE/lua.lua\c9.
+
+\tFile paths may be relative.
+
+\b7COMMANDS\c9
+\t\b7tle\c9 will recognize and interpret the following keyboard commands (\b7^\c9 represents the \b4[control]\c9 key):
+
+\t\b7^N\c9
+\t\tOpen a file for editing, or create a new file with the specified name.  Prompts for a file name.
+
+\t\b7^H\c9
+\t\tReload syntax highlighting.  Useful if the syntax file has updated or if the file extension was not properly recognized after creation of a new buffer.
+
+\t\b7^S\c9
+\t\tSave the current buffer.
+
+\t\b7^W\c9
+\t\tClose the current buffer.  If there are no more open buffers, quit \b7tle\c9.  Prompts if there is unsaved work.
+
+\t\b7^B\c9
+\t\tNavigate forward through the list of buffers to the next in the list.  If there is only one open buffer or the current buffer is already last in the list, does nothing.
+
+\t\b7^V\c9
+\t\tNavigate backward through the list of buffers to the previous buffer in the list.  If there is only one open buffer or if the current buffer is already first in the list, does nothing.
+
+\t\b7^F\c9
+\t\tSearches the entire buffer for the first occurence of the user-provided Lua pattern.  Prompts for the pattern.
+
+\t\b7^R\c9
+\t\tReplaces every match of the first Lua pattern with the second.  Prompts first for the search pattern, then for the replace pattern.
+
+\t\b7^G\c9
+\t\tGo to line.  If the specified line is outside the buffer, go to the nearest available line.
+
+\t\b7^K\c9
+\t\tDelete lines from the buffer, starting at the current line.  Prompts for the number of lines to delete.  If the number is zero, no lines will be deleted.  If the provided number of lines exceeds the number of lines available for deletion, the buffer will be truncated at the current line.
+
+\t\b7^Q\c9
+\t\tQuit \b7tle\c9.  Prompts if there is unsaved work.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO\c9
+\t\b7ed\c9(\b71\c9)

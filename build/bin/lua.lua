@@ -22,8 +22,29 @@ local env = setmetatable({}, {__index = function(t, k)
   end
 end})
 
+if not io.input().tty then
+  local dat = io.read("a")
+  local ok, err = load(dat, "=stdin", "t", env)
+  if not ok then
+    io.stderr:write(err, "\n")
+    os.exit(1)
+  end
+  local result = pcall(ok, ...)
+  if not result[1] and result[2] then
+    io.stderr:write(result[2], "\n")
+    os.exit(1)
+  else
+    for i = 1, #result, 1 do
+      io.write(tostring(result[i]), "\n")
+    end
+  end
+  os.exit(0)
+end
+
+io.stdout:write(_VERSION, "  Copyright (c) 1994-2020 Lua.org, PUC-Rio\n")
+
 while true do
-  io.write("> ")
+  io.stdout:write("> ")
   local inp = io.read("l")
   local exec, err = load("print("..inp..")", "=stdin")
   if not exec then

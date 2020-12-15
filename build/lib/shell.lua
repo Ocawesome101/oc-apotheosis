@@ -302,9 +302,11 @@ local function execute(str)
         end})
       end
       local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
---      io.stderr:write("DONE",tostring(ok)," ", tostring(ret),"\n")
       if not ok and ret then
         errno = ret
+        if type(ret) == "table" then
+          ret = require("serializer").serialize(ret)
+        end
         io.stderr:write(ret,"\n")
         for i, _ in pairs(pids) do
           process.signal(pids[i], process.signals.SIGKILL)

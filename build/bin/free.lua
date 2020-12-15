@@ -10,14 +10,14 @@ local free = computer.freeMemory()
 local used = total - free
 
 if opts.h then
-  print("total   used  free")
-  print(string.format("%5dK %5dK %5dK",
+  io.write("total   used  free\n")
+  io.write(string.format("%5dK %5dK %5dK\n",
                       math.floor(total/1024),
                       math.floor(used/1024),
                       math.floor(free/1024)))
 else
-  print("    total    used         free")
-  print(string.format("%12d%12d%12d", total, used, free))
+  io.write("    total    used         free\n")
+  io.write(string.format("%12d%12d%12d\n", total, used, free))
 end
 
 os.exit(0)

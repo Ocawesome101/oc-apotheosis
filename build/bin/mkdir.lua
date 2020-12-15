@@ -7,25 +7,25 @@ local paths = require("libpath")
 local args, opts = argp.parse(...)
 
 if #args == 0 or opts.help then
-  print([[
+  io.stderr:write([[
 Usage: mkdir [OPTION].. DIRECTORY...
-Create the DIRECTORY(ies), if they do not already exist.]])
-  os.exit()
+Create the DIRECTORY(ies), if they do not already exist.\n]])
+  os.exit(0)
 end
 
 for i=1, #args, 1 do
   local path, err = paths.resolve(args[i], true)
   if not path and err then
-    print(err)
+    io.stderr:write(err, "\n")
     os.exit(1)
   end
   if fs.stat(path) and not opts.p then
-    print(args[i]..": file already exists")
+    io.stderr:write(args[i], ": file already exists\n")
     os.exit(1)
   end
   local ok, err = fs.makeDirectory(path)
   if not ok and err then
-    print(err)
+    io.stderr:write(err, "\n")
     os.exit(1)
   end
 end

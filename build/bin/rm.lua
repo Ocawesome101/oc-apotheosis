@@ -8,32 +8,33 @@ local paths = require("libpath")
 local args, opts = argp.parse(...)
 
 if #args == 0 or opts.help then
-  print([[
+  io.stderr:write([[
 Usage: rm [OPTION]... [FILE]...
-Remove the FILE(s).]])
+Remove the FILE(s).
+]])
   os.exit(0)
 end
 
 for i=1, #args, 1 do
   local path, err = paths.resolve(args[i])
   if not path then
-    print(err)
+    io.stderr:write(err, "\n")
     os.exit(1)
   end
   local info = fs.stat(path)
   if info.isDirectory then
     if not opts.r then
-      print(args[i]..": is a directory")
+      io.stderr:write(args[i], ": is a directory\n")
       if not opts.f then
         os.exit(1)
       end
     else
       if opts.v then
-        print("removing '"..args[i].."'")
+        io.stderr:write("removing '", args[i], "'\n")
       end
       local ok, err = futil.delete(path)
       if not ok then
-        print(err)
+        io.stderr:write(err, "\n")
         if not opts.f then
           os.exit(1)
         end
@@ -41,11 +42,11 @@ for i=1, #args, 1 do
     end
   else
     if opts.v then
-      print("removing '"..args[i].."'")
+      io.stderr:write("removing '", args[i], "'\n")
     end
     local ok, err = fs.remove(path)
     if not ok then
-      print(err)
+      io.stderr:write(err, "\n")
       if not opts.f then
         os.exit(1)
       end

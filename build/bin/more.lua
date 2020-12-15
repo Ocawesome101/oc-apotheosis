@@ -6,37 +6,53 @@ local vt = require("libvt")
 
 local args, opts = shell.parse(...)
 
-if #args == 0 or opts.help then
-  io.stderr:write("usage: more FILE")
-  os.exit(1)
+if (#args == 0 and io.input().tty) or opts.help then
+  io.stderr:write("usage: more FILE\n")
+  os.exit(opts.help and 0 or 1)
 end
 
-local handle, err = io.open(args[1], "r")
-if not handle then
-  shell.error("more", err)
-  os.exit(1)
-end
-
-if not (io.stdin.tty and io.stdout.tty) then
-  shell.error("more", "input/output must be a tty")
-  os.exit(1)
+local handle, err
+if io.input().tty then
+  handle, err = io.open(args[1], "r")
+  if not handle then
+    shell.error("more", err)
+    os.exit(1)
+  end
+else
+  handle = io.input()
 end
 
 local w, h = vt.getResolution()
 local write = {}
-repeat
-  local line = handle:read("l")
-  if #line > w then
-    for i = 1, #line, w do
-      write[#write + 1] = line:sub(i, i + w - 1)
-    end
+
+local function insert(line)
+  if not line then return end
+  -- TODO: better ANSI handling
+  local raw_len = #(line:gsub("\27%[(%d+)m", ""))
+  line = line:gsub("\n", "")
+  if raw_len > w then
   else
     write[#write + 1] = line
   end
-until not line
+end
 
-handle:close()
+if handle then
+  for line in handle:lines() do
+    insert(line)
+  end
+  
+  handle:close()
+end
 
-for i = 1, 
+local written = 0
+for i=1, #write, 1 do
+  written = written + 1
+  io.write(write[i], "\n")
+  if written >= h - 1 then
+    written = 0
+    io.write("-- MORE --")
+    io.stdin:read()
+  end
+end
 
 os.exit(0)
