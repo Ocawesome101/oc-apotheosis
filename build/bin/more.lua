@@ -25,20 +25,15 @@ end
 local w, h = vt.getResolution()
 local write = {}
 
-local function insert(line)
+local function line_len(line)
   if not line then return end
   -- TODO: better ANSI handling
-  local raw_len = #(line:gsub("\27%[(%d+)m", ""))
-  line = line:gsub("\n", "")
-  if raw_len > w then
-  else
-    write[#write + 1] = line
-  end
+  return #(line:gsub("\27%[%d%dm", ""))
 end
 
 if handle then
   for line in handle:lines() do
-    insert(line)
+    write[#write + 1] = line:gsub("\n", "")
   end
   
   handle:close()
@@ -46,12 +41,14 @@ end
 
 local written = 0
 for i=1, #write, 1 do
-  written = written + 1
-  io.write(write[i], "\n")
-  if written >= h - 1 then
+  local add = math.max(1, math.ceil((line_len(write[i]) + 1) / w))
+  if written + add >= h - 1 then
     written = 0
     io.write("-- MORE --")
     io.stdin:read()
+  else
+    written = written + add
+    io.write(write[i], "\n")
   end
 end
 

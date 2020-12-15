@@ -4,7 +4,7 @@
 
 This repository hosts a build environment for the Apotheosis operating system.
 
-Clone this repository and run `assemble.sh`.  You'll need Lua 5.3 or newer, bash, and probably a Unix-like system due to heavy dependence on `io.popen` and Unix commands throughout the build process.
+Clone this repository and run `assemble.sh`.  You'll need Lua 5.3 or newer, bash, and probably a Unix-like system due to heavy dependence on `io.popen` and Unix-like commands throughout the build process.  Only tested on Linux.
 
 If you intend to do development work, run `setup.sh` first.
 
