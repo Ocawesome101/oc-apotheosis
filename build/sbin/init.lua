@@ -46,7 +46,44 @@ log(34, string.format("Welcome to \27[92m%s \27[97mversion \27[94m%s\27[97m", _I
 
 -- services --
 
+do
+  local process = require("process")
+  local running = {}
 
+  local svc = {}
+  local path = "/etc/services.d/"
+
+  local function full(p)
+    return string.format("%s%s.lua", path, s)
+  end
+
+  function svc.start(s)
+    if running[s] and process.info(running[s]) then
+      return true
+    end
+    local full = full(s)
+    local ok, err = loadfile(full)
+    if not ok then
+      return nil, err
+    end
+    local pid = process.spawn(ok, "["..s.."]")
+    running[s] = pid
+  end
+
+  function svc.stop(s)
+    if not running[s] then
+      return true
+    end
+    process.signal(running[s], process.signals.SIGTERM)
+    running[s] = nil
+  end
+  
+  function svc.running()
+    return table.copy(running)
+  end
+
+  package.loaded.service = svc
+end
 
 -- run levels
 
@@ -71,7 +108,6 @@ do
                |  \- 00_shutdown.lua
                |- 1
                |  |- 00_base.lua
-               |  |- 10_package.lua
                |  \- 99_single_user_mode.lua
                |- 2
                |  \- 00_services.lua

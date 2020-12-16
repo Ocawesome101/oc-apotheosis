@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
-  built   = "2020/12/15",
+  built   = "2020/12/16",
   builder = "ocawesome101@manjaro-pbp"
 }
 
@@ -1460,6 +1460,13 @@ do
 
     function k.sb.process.thread(func, name)
       return k.sched.newthread(func, name)
+    end
+
+    function k.sb.process.sethandler(sig, func)
+      checkArg(1, sig, "number")
+      checkArg(2, func, "function")
+      k.sched.info().sighandlers[sig] = func
+      return true
     end
 
     -- some of the userspace `os' api, specifically the process-centric stuff

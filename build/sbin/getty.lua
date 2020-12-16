@@ -30,12 +30,20 @@ local function get(t, n)
   return res[n] or res[8000] or res[2000] or res[800]
 end
 
+local function getDeviceInfo()
+  local ok, err = pcall(computer.getDeviceInfo)
+  if not ok and err then
+    return setmetatable({}, {__index=function()return{}end})
+  end
+  return err
+end
+
 local ttyn = 0
 local function scan(s, a, t)
   if t ~= "gpu" and t ~= "screen" then
     return nil
   end
-  local dinfo = computer.getDeviceInfo()
+  local dinfo = getDeviceInfo()
 
   for addr, ctype in component.list() do
     if ctype == "gpu" then
@@ -102,7 +110,12 @@ event.register("component_removed", scan)
 io.input().tty = "tty0"
 ttys[ttyn] = {stream = io.input(), gpu = bgpu, screen = bscr}
 
-local ok, err = loadfile("/bin/login.lua")
+local ok, err
+if computer.runlevel() == 1 then
+  ok, err = loadfile("/bin/sh.lua")
+else
+  ok, err = loadfile("/bin/login.lua")
+end
 if not ok then
   io.write(err,"\n")
 else
