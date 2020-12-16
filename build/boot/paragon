@@ -28,7 +28,7 @@ _G._KINFO = {
   name    = "Paragon",
   version = "0.3.0",
   built   = "2020/12/15",
-  builder = "ocawesome101@archlinux"
+  builder = "ocawesome101@manjaro-pbp"
 }
 
 -- kernel i/o
@@ -1413,8 +1413,10 @@ do
 
   k.hooks.add("sandbox", function()
     -- userspace process api
+    local signals = process.signals
     local process = {}
     k.sb.process = process
+    k.sb.process.signals = signals
     function k.sb.process.spawn(a,b,c)
       return k.sched.spawn(a,b,c).pid
     end
@@ -1455,7 +1457,6 @@ do
     function k.sb.process.signal(pid, sig)
       return k.sched.signal(pid, sig)
     end
-    k.sb.process.signals = process.signals
 
     function k.sb.process.thread(func, name)
       return k.sched.newthread(func, name)
@@ -1621,6 +1622,13 @@ do
 
   function io.write(...)
     return io.output():write(...)
+  end
+
+  function io.lines(file, ...)
+    if not file then
+      return io.input():lines(...)
+    end
+    return io.open(file, "r"):lines(...)
   end
 
   k.hooks.add("sandbox", function()
@@ -3300,9 +3308,9 @@ function vt.new(gpu, screen)
       return nil, "input/output error"
     end
     str = str:gsub("\8", "\27[D")
-    local _c = gpu.get(cx, cy)
-    gpu.setForeground(fg)
-    gpu.setBackground(bg)
+    local _c, _f, _b = gpu.get(cx, cy)
+    gpu.setForeground(_b)
+    gpu.setBackground(_f)
     gpu.set(cx, cy, _c)
     for c in str:gmatch(".") do
       if mode == 0 then
@@ -3459,7 +3467,7 @@ function vt.new(gpu, screen)
                 elseif n == 39 then -- default foreground
                   fg = colors[8]
                 elseif n == 49 then -- default background
-                bg = colors[1]
+                  bg = colors[1]
                 elseif n > 89 and n < 98 then -- bright foreground
                   fg = bright[n - 89]
                 elseif n > 99 and n < 108 then -- bright background

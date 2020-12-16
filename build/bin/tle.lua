@@ -93,7 +93,7 @@ local buffers = {}
 local commands -- forward declaration so commands and load_file can access this
 local function load_file(file)
   local n = #buffers + 1
-  buffers[n] = {name=file, cline = 1, cpos = 0, scroll = 1, lines = {}}
+  buffers[n] = {name=file, cline = 1, cpos = 0, scroll = 1, lines = {}, cached_lines = {}}
   local handle = io.open(file, "r")
   cbuf = n
   if not handle then
@@ -113,7 +113,7 @@ if args[1] == "--help" then
 elseif args[1] then
   load_file(args[1])
 else
-  buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 0, lines = {""}}
+  buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 0, lines = {""}, cached_lines = {}}
 end
 
 local function truncate_name(n, bn)
@@ -133,7 +133,7 @@ local function draw_open_buffers()
   end
   draw = draw .. "\27[36m|\27[37m"
   if #draw > w then
-    draw = draw:sub(1, -(#(draw:gsub("\27%[%d+m", "")) - w))
+    draw = draw:sub(1, w)
   end
   io.write(draw, "\n\27[G\27[2K\27[36m", string.rep("-", w))
 end
@@ -162,8 +162,12 @@ local function draw_buffer()
   draw_open_buffers()
   local top_line = buffers[cbuf].scroll
   for i=1, h - 2, 1 do
-    vt.set_cursor(1, i + 2)
-    draw_line(top_line + i - 1, buffers[cbuf].lines[top_line + i - 1])
+    local line = top_line + i - 1
+    if buffers[cbuf].cached_lines[line] ~= buffers[cbuf].lines[line] then
+      vt.set_cursor(1, i + 2)
+      draw_line(line, buffers[cbuf].lines[line])
+      buffers[cbuf].cached_lines[line] = buffers[cbuf].lines[line]
+    end
   end
   io.write("\27(b")
 end
@@ -262,6 +266,7 @@ arrows = {
       local dfe = #(buf.lines[buf.cline] or "") - buf.cpos
       buf.cline = buf.cline - 1
       if buf.cline < buf.scroll and buf.scroll > 0 then
+        buf.cached_lines = {}
         buf.scroll = buf.scroll - 1
       end
       buf.cpos = #buf.lines[buf.cline] - dfe
@@ -274,6 +279,7 @@ arrows = {
       local dfe = #(buf.lines[buf.cline] or "") - buf.cpos
       buf.cline = buf.cline + 1
       if buf.cline > buf.scroll + h - 3 then
+        buf.cached_lines = {}
         buf.scroll = buf.scroll + 1
       end
       buf.cpos = #buf.lines[buf.cline] - dfe
@@ -340,11 +346,13 @@ commands = {
   b = function()
     if cbuf < #buffers then
       cbuf = cbuf + 1
+      buffers[cbuf].cache = {}
     end
   end,
   v = function()
     if cbuf > 1 then
       cbuf = cbuf - 1
+      buffers[cbuf].cache = {}
     end
   end,
   f = function()
@@ -386,6 +394,7 @@ commands = {
   end,
   h = function()
     buffers[cbuf].highlighter = try_get_highlighter()
+    buffers[cbuf].cache = {}
   end,
   m = function() -- this is how we insert a newline - ^M == "\n"
     insert_character("\n")
@@ -449,7 +458,7 @@ commands = {
 }
 
 commands.h()
-io.write("\27(l\27(R")
+io.write("\27(l\27(R\27[8m")
 
 while true do
   draw_buffer()
