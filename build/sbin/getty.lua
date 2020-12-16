@@ -41,26 +41,32 @@ local function scan(s, a, t)
     if ctype == "gpu" then
       gpus[addr] = gpus[addr] or {
         bound = false,
-        res = tonumber(dinfo[addr].capacity)
+        res = tonumber(dinfo[addr].capacity) or 8000
       }
     elseif ctype == "screen" then
       screens[addr] = screens[addr] or {
         bound = false,
-        res = tonumber(dinfo[addr].capacity)
+        res = tonumber(dinfo[addr].capacity) or 8000
       }
     end
   end
   
   for k, v in pairs(gpus) do
     if not dinfo[k] then
-      screens[v.bound].bound = false
+      if v.bound then
+        process.signal(v.bound, process.signals.SIGHUP)
+        screens[v.bound].bound = false
+      end
       gpus[k] = nil
     end
   end
 
   for k, v in pairs(screens) do
     if not dinfo[k] then
-      gpus[v.bound].bound = false
+      if v.bound then
+        process.signal(v.bound, process.signals.SIGHUP)
+        gpus[v.bound].bound = false
+      end
       screens[k] = nil
     end
   end
@@ -70,31 +76,23 @@ local function scan(s, a, t)
     if not (gpu and screen) then
       break
     end
-    local ios
-    -- try to re-use existing TTYs
-    for k, v in pairs(ttys) do
-      if v.gpu == gpu and v.screen == screen then
-        ios = v.stream
-        break
-      end
-    end
-    if not ios then
-      ios = vt100.new(gpu, screen)
-      ios.tty = "tty"..ttyn
-      gpus[gpu].bound = screen
-      screens[screen].bound = gpu
-      ttys["tty"..ttyn] = {stream = ios, gpu = gpu, screen = screen}
-    end
+    local ios = vt100.new(gpu, screen)
+    ios.tty = "tty"..ttyn
+    gpus[gpu].bound = screen
+    screens[screen].bound = gpu
     local ok, err = loadfile("/bin/login.lua")
     if not ok then
-      io.write(err)
+      io.stderr:write(err, "\n")
+    else
+      local i, o, e = io.input(), io.output(), io.error()
+      io.input(ios)
+      io.output(ios)
+      io.error(ios)
+      local pid = require("process").spawn(ok, "login")
+      io.input(i)
+      io.output(o)
+      io.error(e)
     end
-    local i, o = io.input(), io.output()
-    io.input(ios)
-    io.output(ios)
-    local pid = require("process").spawn(ok, "login")
-    io.input(i)
-    io.output(o)
   end
 end
 

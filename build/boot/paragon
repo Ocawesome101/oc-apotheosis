@@ -220,6 +220,7 @@ do
       traceback = traceback .. string.format("\n  %s:%s: in %s'%s':", info.source:gsub("=*",""), info.currentline or "C", (info.namewhat ~= "" and info.namewhat .. " ") or "", info.name or "?")
       i = i + 1
     end
+    traceback = traceback:gsub("\t", "  ")
     for line in traceback:gmatch("[^\n]+") do
       kio.dmesg(kio.loglevels.PANIC, line)
     end
@@ -697,11 +698,10 @@ do
      1. use vfs.resolve to resolve a filepath to a proxy and a path on the proxy
      2. operate on the proxy
      the vfs api does not provide all available filesystem functions; see
-     'misc/fsapi.lua' for an api that does.
+     'src/fsapi.lua' for an api that does.
      note that while running a kernel without the fsapi module, you'll need to
-     either assign it as an initrd module or set 'security.uspace_vfs=1' in the
-     kernel command line to allow userspace to access the vfs api (not
-     recommended!). ]]
+     assign it as an initrd module for most of the system to function.  As such,
+     fsapi is included by default. ]]
 
   local function segments(path)
     local segs = {}
@@ -872,14 +872,14 @@ do
   function hooks.add(k, v)
     checkArg(1, k, "string")
     checkArg(2, v, "function")
-    hooks[k] = hooks[k] or setmetatable({}, {__call = function(self, ...) for k, v in pairs(self) do pcall(v, ...) end end})
+    hooks[k] = hooks[k] or setmetatable({}, {__call = function(self, ...) for k, v in ipairs(self) do v(...) end end})
     table.insert(hooks[k], v)
     return true
   end
   function hooks.call(k, ...)
     checkArg(1, k, "string")
     if hooks[k] then
-      for k,v in pairs(hooks[k]) do
+      for k, v in ipairs(hooks[k]) do
         pcall(v, ...)
       end
     end
@@ -917,6 +917,9 @@ do
   -- NOTE: a user other than their current one. This simplifies certain things.
   local users = {}
   local upasswd = {}
+
+  -- this gets overridden later but we need this one
+  local old_rawset = rawset
   
   -- users.prime(passwd:table): boolean or nil, string
   --   Prime the 'users' API with data from a passwd file, usually /etc/passwd.
@@ -927,7 +930,7 @@ do
       return nil, "no root password definition"
     end
     users.prime = nil
-    k.sb.k.security.users.prime = nil
+    old_rawset(k.sb.package.loaded.security.users, "prime", nil)
     upasswd = passwd
     return true
   end
@@ -1020,12 +1023,49 @@ end
 do
   k.hooks.add("sandbox", function()
     -- raw component restrictions
-    sb.component = setmetatable({}, {__index = function(_,m)
+    k.sb.component = setmetatable({}, {__index = function(_,m)
       if k.security.users.user() ~= 0 then
         error(string.format("component.%s: permission denied", m))
       end
       return component[m]
     end, __metatable = {}})
+  end)
+end
+
+-- sandbox hooks for wrapping kernel-level APIs more securely
+
+do
+  -- wrap rawset to respect blacklisted tables
+  local old_rawset = rawset
+  local blacklisted = {}
+  function _G.rawset(tbl, key, val)
+    checkArg(1, tbl, "table")
+    if blacklisted[tbl] then
+      -- trigger __newindex, throw error
+      tbl[key] = val
+    end
+    old_rawset(tbl, key, val)
+  end
+
+  local function protect(tbl, name)
+    local protected = setmetatable(tbl, {
+      __newindex = function()
+        error((name or "lib") .. " is protected")
+      end,
+      __metatable = {}
+    })
+    blacklisted[protected] = true
+    return protected
+  end
+  k.security.protect = protect
+
+  -- snadbox hook for protecting certain sensitive APIs
+  k.hooks.add("sandbox", function()
+    k.sb.sha3 = protect(k.sb.k.sha3)
+    k.sb.sha2 = protect(k.sb.k.sha2)
+    k.sb.ec25519 = protect(k.sb.k.ec25519)
+    k.sb.security = protect(k.sb.k.security)
+    old_rawset(k.sb.security, "users", protect(k.sb.k.security.users))
   end)
 end
 
@@ -1116,6 +1156,9 @@ do
         kio.dmesg(kio.loglevels.DEBUG, "process " .. self.pid .. ": thread died: " .. i)
         self.threads[i] = nil
         if ec then kio.dmesg(tostring(ec)) end
+        if self.pid == 1 then -- we are init, PANIC!!!
+          kio.panic(tostring(ec))
+        end
         computer.pushSignal("thread_died", self.pid, (type(ec) == "string" and 1 or ec), type(ec) == "string" and ec)
       end
       -- TODO: this may result in incorrect yield timeouts with multiple threads
@@ -1246,8 +1289,6 @@ do
   local procs = {}
   local s = {}
   local last, current = 0, 0
-  -- TODO: proper process timeouts
-  local timeout = tonumber(kargs["scheduler.timeout"]) or 0.5
 
   -- k.sched.spawn(func:function, name:string[, priority:number]): table
   --   Spawns a process, adding `func` to its threads.
@@ -1353,7 +1394,7 @@ do
         current = proc.pid
         proc:resume(table.unpack(sig))
         if proc.dead then
-          kio.dmesg("process died: " .. proc.pid)
+          kio.dmesg(kio.loglevels.DEBUG, "process died: " .. proc.pid)
           computer.pushSignal("process_died", proc.pid, proc.name)
           for k,v in pairs(proc.handles) do
             pcall(v.close, v)
@@ -1372,7 +1413,8 @@ do
 
   k.hooks.add("sandbox", function()
     -- userspace process api
-    k.sb.process = {}
+    local process = {}
+    k.sb.process = process
     function k.sb.process.spawn(a,b,c)
       return k.sched.spawn(a,b,c).pid
     end
@@ -1417,6 +1459,33 @@ do
 
     function k.sb.process.thread(func, name)
       return k.sched.newthread(func, name)
+    end
+
+    -- some of the userspace `os' api, specifically the process-centric stuff
+    function k.sb.os.getenv(k)
+      checkArg(1, k, "string", "number")
+      return process.info().env[k]
+    end
+
+    function k.sb.os.setenv(k, v)
+      checkArg(1, k, "string", "number")
+      checkArg(2, v, "string", "number", "nil")
+      process.info().env[k] = v
+      return true
+    end
+
+    function k.sb.os.exit()
+      process.signal(process.current(), process.signals.SIGKILL)
+      coroutine.yield()
+    end
+
+    function k.sb.os.sleep(n)
+      checkArg(1, n, "number")
+      local max = computer.uptime() + n
+      repeat
+        coroutine.yield()
+      until computer.uptime() >= max
+      return true
     end
   end)
 end
@@ -1567,6 +1636,68 @@ do
   --TODO: flesh out io, maybe in userspace?
 end
 
+-- simple filesystem API
+
+kio.dmesg("src/fsapi.lua")
+
+do
+  -- for now, we'll just only provide userspace with this one
+  k.hooks.add("sandbox", function()
+    local vfs = vfs
+    local fs = {}
+
+    fs.stat = vfs.stat
+    fs.mount = vfs.mount
+    fs.mounts = vfs.mounts
+    fs.umount = vfs.umounts
+
+    function fs.isReadOnly(file)
+      checkArg(1, file, "string", "nil")
+      local node, path = vfs.resolve(file or "/")
+      if not node then
+        return nil, path
+      end
+      return node:isReadOnly(path)
+    end
+
+    function fs.makeDirectory(path)
+      checkArg(1, path, "string")
+      local sdir, dend = path:match("(.+)/(.-)")
+      sdir = sdir or "/"
+      dend = dend~=""and dend or path
+      local node, dir = vfs.resolve(sdir)
+      if not node then
+        return nil, dir
+      end
+      local ok, err = node:makeDirectory(dir.."/"..dend)
+      if not ok and err then
+        return nil, err
+      end
+      return true
+    end
+
+    function fs.remove(file)
+      checkArg(1, file, "string")
+      local node, path = vfs.resolve(file)
+      if not node then
+        return nil, path
+      end
+      return node:remove(path)
+    end
+  
+    function fs.list(dir)
+      checkArg(1, dir, "string")
+      local node, path = vfs.resolve(dir)
+      if not node then
+        return nil, path
+      end
+      return node:list(path)
+    end
+
+    k.sb.fs = fs
+  end)
+end
+
 -- Paragon eXecutable parsing?
 
 kio.dmesg(kio.loglevels.INFO, "ksrc/exec/px.lua")
@@ -1583,9 +1714,7 @@ do
 
   function computer.pullSignal(timeout)
     checkArg(1, timeout, "number", "nil")
---    kio.dmesg(kio.loglevels.DEBUG, "evt: ps")
     local sig = table.pack(ps(timeout))
---    kio.dmesg(kio.loglevels.DEBUG, "evt: gotsig")
     if sig.n > 0 then
       for k, v in pairs(listeners) do
         if v.sig == sig[1] then
@@ -1597,7 +1726,6 @@ do
       end
     end
 
---    kio.dmesg(kio.loglevels.DEBUG, "evt: did listeners")
     return table.unpack(sig)
   end
   do
@@ -2239,9 +2367,7 @@ do
 
   function computer.pullSignal(timeout)
     checkArg(1, timeout, "number", "nil")
---    kio.dmesg(kio.loglevels.DEBUG, "evt: ps")
     local sig = table.pack(ps(timeout))
---    kio.dmesg(kio.loglevels.DEBUG, "evt: gotsig")
     if sig.n > 0 then
       for k, v in pairs(listeners) do
         if v.sig == sig[1] then
@@ -2253,7 +2379,6 @@ do
       end
     end
 
---    kio.dmesg(kio.loglevels.DEBUG, "evt: did listeners")
     return table.unpack(sig)
   end
   do
@@ -3528,6 +3653,117 @@ k.vt = vt
 
 end
 
+-- package library --
+
+
+k.hooks.add("sandbox", function()
+  kio.dmesg("ksrc/package.lua")
+  local package = {}
+  k.sb.package = package
+  local loading = {}
+  local loaded = {
+    _G = k.sb,
+    os = k.sb.os,
+    io = k.sb.io,
+    sha2 = k.sb.sha2,
+    sha3 = k.sb.sha3,
+    math = k.sb.math,
+    pipe = {create = k.io.pipe},
+    event = table.copy(k.evt),
+    table = k.sb.table,
+    users = k.sb.security.users,
+    bit32 = k.sb.bit32,
+    vt100 = table.copy(k.vt),
+    string = k.sb.string,
+    buffer = table.copy(k.io.buffer),
+    package = k.sb.package,
+    process = k.sb.process,
+    ec25519 = k.sb.ec25519,
+    security = k.sb.security,
+    hostname = table.copy(k.hostname),
+    computer = k.sb.computer,
+    component = k.sb.component,
+    coroutine = k.sb.coroutine,
+    filesystem = k.sb.fs
+  }
+  k.sb.k = nil
+  k.sb.fs = nil
+  k.sb.vfs = nil
+  k.sb.sha2 = nil
+  k.sb.sha3 = nil
+  k.sb.bit32 = nil
+  k.sb.process = nil
+  k.sb.ec25519 = nil
+  k.sb.security = nil
+  k.sb.computer = nil
+  k.sb.component = nil
+  package.loaded = loaded
+
+  package.path = "/lib/?.lua;/lib/lib?.lua;/lib/?/init.lua"
+
+  function package.searchpath(name, path, sep, rep)
+    checkArg(1, name, "string")
+    checkArg(2, path, "string")
+    checkArg(3, sep, "string", "nil")
+    checkArg(4, rep, "string", "nil")
+    sep = "%" .. (sep or ".")
+    rep = rep or "/"
+    local searched = {}
+    name = name:gsub(sep, rep)
+    for search in path:gmatch("[^;]+") do
+      search = search:gsub("%?", name)
+      if vfs.stat(search) then
+        return search
+      end
+      searched[#searched + 1] = search
+    end
+    return nil, searched
+  end
+
+  function package.delay(lib, file)
+    local mt = {
+      __index = function(tbl, key)
+        setmetatable(lib, nil)
+        setmetatable(lib.internal or {}, nil)
+        k.sb.dofile(file)
+        return tbl[key]
+      end
+    }
+    if lib.internal then
+      setmetatable(lib.internal, mt)
+    end
+    setmetatable(lib, mt)
+  end
+
+  kio.dmesg(kio.loglevels.PANIC, "add: require")
+  function k.sb.require(module)
+    checkArg(1, module, "string")
+    if loaded[module] ~= nil then
+      return loaded[module]
+    elseif not loading[module] then
+      local library, status, step
+
+      step, library, status = "not found", package.searchpath(module, package.path)
+
+      if library then
+        step, library, status = "loadfile failed", loadfile(library)
+      end
+
+      if library then
+        loading[module] = true
+        step, library, status = "load failed", pcall(library, module)
+        loading[module] = false
+      end
+
+      assert(library, string.format("module '%s' %s:\n%s", module, step, status))
+      loaded[module] = status
+      return status
+    else
+      error("already loading: " .. module .. "\n" .. debug.traceback(), 2)
+    end
+  end
+end)
+
 -- sandbox --
 
 kio.dmesg("ksrc/sandbox.lua")
@@ -3554,8 +3790,7 @@ end
 
 
 do
-  local sb = {}
-  sb = table.copy(_G)
+  local sb = table.copy(_G)
   sb._G = sb
   k.sb = sb
   local iomt = k.iomt
@@ -3576,7 +3811,7 @@ do
   if not ok then
     kio.panic(err)
   end
-  k.sched.spawn(ok, "[init]", 1)
+  k.sched.spawn(function()ok(k)end, "[init]", 1)
 end
 
 k.sched.loop()
