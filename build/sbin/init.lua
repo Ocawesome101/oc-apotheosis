@@ -17,7 +17,7 @@ local k = ...
 local log = k.io.dmesg
 local _INFO = {
   name    = "Epitome",
-  version = "0.3.0",
+  version = "0.7.1",
 }
 
 -- init logger --
@@ -31,7 +31,7 @@ if k.io.gpu then
   io.input(vts)
   io.output(vts)
   k.sched.getinfo():stderr(vts)
-  vts:write("\27[2J\27[1;1H")
+  vts:write("\27[39;49m\27[2J\27[1;1H")
   function log(col, msg)
     if type(col) == "string" then
       msg = col
@@ -82,7 +82,7 @@ do
     return table.copy(running)
   end
 
-  package.loaded.service = svc
+  package.loaded.svc = svc
 end
 
 -- run levels
@@ -131,9 +131,10 @@ do
     for i=1, #files, 1 do
       if files[i]:sub(1,1) ~= "." then
         log(34, base .. files[i])
-        local ok, err = pcall(dofile, base .. files[i])
+        local ok, err = pcall(dofile, base .. files[i], log)
         if not ok and err then
           log(31, "ERROR: " .. tostring(err))
+          os.sleep(5)
         end
       end
     end

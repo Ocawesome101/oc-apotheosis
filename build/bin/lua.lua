@@ -1,5 +1,7 @@
 -- lua REPL --
 
+local readline = require("readline")
+
 local function tryreq(l)
   local ok, err = pcall(require, l)
   if not ok and err then
@@ -43,9 +45,10 @@ end
 
 io.stdout:write(_VERSION, "  Copyright (c) 1994-2020 Lua.org, PUC-Rio\n")
 
+local hist = {}
 while true do
   io.stdout:write("> ")
-  local inp = io.read("l")
+  local inp = readline({history = hist})
   local exec, err = load("print("..inp..")", "=stdin")
   if not exec then
     exec, err = load(inp, "=stdin")

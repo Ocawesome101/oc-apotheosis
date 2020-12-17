@@ -452,7 +452,7 @@ commands = {
         end
       end
     end
-    io.write("\27[2J\27[1;1H\27[28m\27(L\27(r")
+    io.write("\27[2J\27[1;1H\27[m\27(L\27(r\27[39m")
     os.exit()
   end
 }

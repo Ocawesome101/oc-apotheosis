@@ -10,8 +10,8 @@ RED="\e[91m::\e[39m"
 BUILD_OPTS="-d"
 UPDATE=
 OCVM=
-export KERNEL_VERSION="0.3.0"
-export INIT_VERSION="0.3.0"
+export KERNEL_VERSION="0.6.0"
+export INIT_VERSION="0.7.1"
 while [ "$1" ]; do
   case "$1" in
     release)

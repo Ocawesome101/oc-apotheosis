@@ -122,7 +122,7 @@ for i=1, #args, 1 do
       elseif permutil.hasPermission(info.permissions, "x") then
         ftype = "exec"
       end
-      ln = string.format("%s\27[%dm%s", ln, colors[ftype], textutils.padRight(files[i], maxN))
+      ln = string.format("%s\27[%dm%s", ln, colors[ftype], textutils.padRight(files[i] or "unknown", maxN))
       if #ln >= w then
         formatted = string.format("%s%s\n", formatted, ln)
         ln = ""

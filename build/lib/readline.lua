@@ -15,24 +15,27 @@ local function readline(opts)
   local buffer = opts.buffer or ""
   local history = opts.history or {}
   history[#history + 1] = ""
-  local hpos = 1
+  local hpos = #history -- position in history table
   local pos = 0
+  local clr = false -- whether we need to clear the text on-screen
   local actions = setmetatable(opts.actions or {}, {
     __index = {
       -- up arrow
       A = function()
-        if hist_pos > 1 then
-          history[hist_pos] = buffer
-          hist_pos = hist_pos - 1
-          buffer = history[hist_pos]
+        if hpos > 1 then
+          clr = true
+          history[hpos] = buffer
+          hpos = hpos - 1
+          buffer = history[hpos]
         end
       end,
       -- down arrow
       B = function()
-        if hist_pos < #history then
-          history[hist_pos] = buffer
-          hist_pos = hist_pos + 1
-          buffer = history[hist_pos]
+        if hpos < #history then
+          clr = true
+          history[hpos] = buffer
+          hpos = hpos + 1
+          buffer = history[hpos]
         end
       end,
       -- right arrow
@@ -49,8 +52,22 @@ local function readline(opts)
       end,
     }
   })
+  local oblen = 0
+  local obuf = buffer
+  local opos = 0
   local function redraw()
-    io.write(string.rep("\27[D", #buffer - (1)), buffer, " \27[D", string.rep("\27[D", pos))
+    if obuf ~= buffer then -- buffer has changed
+      io.write(string.format("\27[%dD", oblen - opos), (clr and "\27[J" or ""), buffer, " \27[D", string.format("\27[%dD", pos))
+    else
+      if opos > pos then
+        io.write(string.format("\27[%dC", opos - pos))
+      elseif opos < pos then
+        io.write(string.format("\27[%dD", pos - opos))
+      end
+    end
+    oblen = #buffer
+    obuf = buffer
+    opos = pos
   end
   while true do
     redraw()
@@ -70,13 +87,20 @@ local function readline(opts)
         end
       end
     elseif char == "\127" then
-      io.write(string.rep("\27[D", #buffer + 1))
       buffer = buffer:sub(1, #buffer - pos - 1) ..
                     buffer:sub(#buffer - pos + 1)
-      io.write(buffer .. " \27[D")
     elseif char == "\n" or char == "\13" then
+      pos = 0
+      redraw()
       io.write("\n")
+      if hpos == #history then
+        history[hpos] = buffer
+      else
+        table.insert(history, buffer)
+      end
       return buffer
+    elseif not char:byte() then
+      os.exit()
     elseif char:byte() > 31 and char:byte() < 127 then
       buffer = buffer:sub(1, #buffer - pos) ..
                 char .. buffer:sub(#buffer - pos + 1)

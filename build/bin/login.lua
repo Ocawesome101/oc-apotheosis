@@ -16,7 +16,7 @@ while true do
   local name = io.read("l")
   io.write("password: \27[8m")
   local pass = io.read("l")
-  io.write("\27[0m")
+  io.write("\27[0m\n")
   local uid, ok, err -- goto scoping
   do
     uid, err = users.idByName(name)
@@ -40,7 +40,9 @@ while true do
     if not done then
       print("error in shell: " .. ret)
     end
+    goto nosleep
   end
   ::cont::
-  os.sleep(5)
+  os.sleep(3)
+  ::nosleep::
 end
