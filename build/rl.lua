@@ -1,0 +1,2 @@
+r=require'readline'
+r()

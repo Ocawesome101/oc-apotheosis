@@ -129,10 +129,12 @@ do
     if not files then return end
     table.sort(files)
     for i=1, #files, 1 do
-      log(34, base .. files[i])
-      local ok, err = pcall(dofile, base .. files[i])
-      if not ok and err then
-        log(31, "ERROR: " .. tostring(err))
+      if files[i]:sub(1,1) ~= "." then
+        log(34, base .. files[i])
+        local ok, err = pcall(dofile, base .. files[i])
+        if not ok and err then
+          log(31, "ERROR: " .. tostring(err))
+        end
       end
     end
     runlevel = rlvl
