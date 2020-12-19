@@ -25,6 +25,7 @@ local function readline(opts)
         if hpos > 1 then
           clr = true
           history[hpos] = buffer
+          pos = 0
           hpos = hpos - 1
           buffer = history[hpos]
         end
@@ -34,6 +35,7 @@ local function readline(opts)
         if hpos < #history then
           clr = true
           history[hpos] = buffer
+          pos = 0
           hpos = hpos + 1
           buffer = history[hpos]
         end
