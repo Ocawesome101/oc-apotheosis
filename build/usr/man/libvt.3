@@ -1,0 +1,20 @@
+\b7NAME\c9
+\tlibvt - abstraction layer useful in interfacing with the terminal
+
+\b7DESCRIPTION\c9
+\tThe \b7libvt\c9 library is a small utility library providing some simple abstractions over the raw VT100 terminal.  It provides facilities to set and get the cursor position as well as screen size.
+
+\tIf the input or output device is not a terminal, no error will be raised but the cursor will not be moved and the returned resolution will be (\b51\c9, \b51\c9).
+
+\b7FUNCTIONS
+\t\b2libvt.setCursor\b4(\b7x\c9:\b5number\c9, \b7y\c9:\b5number\b4)\c9
+\t\tMoves the terminal cursor to the specified X and Y coordinates.  Equivalent to \b2io.write\b4(\b3"\\27\b3[\b5YY\b3;\b5XX\b3H"\b4)\c9.
+
+\t\b2libvt.getCursor\b4()\c9: \b5number\c9, \b5number\c9
+\t\tReturns the current cursor position, or \b51\c9, \b51\c9 if the current input or output device is not a TTY.
+
+\t\b3libvt.getResolution\b4(): \b5number\c9, \b5number\c9
+\t\tReturns the current screen resolution, or \b51\c9, \b51\c9 if the current input or output device is not a TTY.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.

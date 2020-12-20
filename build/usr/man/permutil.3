@@ -1,0 +1,15 @@
+\b7NAME\c9
+\tpermutil - utilities for working with file permissions
+
+\b7DESCRIPTION\c9a
+\tThis library provides a simple mechanism for working with standard POSIX permissions.
+
+\b7FUNCTIONS
+\t\b2permutil.tostring\b4(\b7perms\c9:\b5number\b4)\c9: \b3string\c9
+\t\tTakes a 9-bit integer and parses it into a string in the form used by \b7ls\c9(\b71\c9).
+
+\t\b2permutil.hasPermission\b4(\b7perms\c9:\b5number\c9, \b7p\c9:\b3string\c9[, \b7s\c9:\b3string\c9]\b4)\c9
+\t\tLooks for the specified permission in the provided set of permissions.  \b3p\c9 specifies the permission itself (`r', `w', or `x'), and \b3s\c9, if provided, specifies the subset of permissions to search for \b3p\c9 (`owner', `group', or `other').  For example, \b2permutil.hasPermission\b4(\b5109\c9, \b3"r"\c9, \b3"owner"\b4)\c9 returns \b5true\c9.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.

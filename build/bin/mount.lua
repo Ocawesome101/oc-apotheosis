@@ -3,6 +3,7 @@
 local argp = require("argp")
 local path = require("path")
 local fs = require("filesystem")
+local users = require("users")
 local component = require("component")
 
 local args, opts = argp.parse(...)
@@ -22,8 +23,8 @@ if #args == 0 then
     io.write(string.format("%s on %s type %s\n", addr, data.path, data.type))
   end
 else
-  if os.getenv("UID") ~= 0 then
-    io.stderr:write("only root can do that\n")
+  if users.user() ~= 0 then
+    io.stderr:write("mount: only root can do that\n")
     os.exit(1)
   end
   local src, dest = args[1], args[2]

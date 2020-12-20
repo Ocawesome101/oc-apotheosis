@@ -67,16 +67,20 @@ for i=1, #args, 1 do
 
   local maxN = 1
   if not opts.l then
-    -- find the longest file entry
+    -- find the longest file entry, and trim out those beginning with "."
+    local rm = {}
     for i=1, #files, 1 do
       if files[i]:sub(1,1) == "." and not opts.a then
-        files[i] = nil
+        rm[#rm + 1] = i
         goto cont
       end
       if #files[i] > maxN then
         maxN = #files[i]
       end
       ::cont::
+    end
+    for i = #rm, 1, -1 do
+      table.remove(files, rm[i])
     end
     maxN = maxN + 2
   end

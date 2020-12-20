@@ -34,7 +34,7 @@ while true do
   if not ok then
     print("error in shell: " .. err)
   else
-    io.write("\n\n")
+    io.write("\n")
     io.write(require("motd").random(), "\n")
     local done, ret = users.spawnAs(uid, pass, ok, "/bin/sh.lua")
     if not done then

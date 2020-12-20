@@ -1,0 +1,21 @@
+\b7NAME\c9
+\tlibpath - file path utility functions
+
+\b7DESCRIPTION\c9
+\tThis library provides several commonly needed utilities based around file paths.
+
+\b7FUNCTIONS
+\t\b2libpath.concat\b4(\b7...\c9: \b3strings\b4)\c9: \b3string\c9
+\t\tCleanly concatenate the provided file paths, stripping any repeated slash (`/' or `\\') characters.
+
+\t\b2libpath.segments\b4(\b7path\c9:\b3string\b4)\c9: \b5table\c9
+\t\tSplits the provided file path into segments.  Automatically resolves all references to `.' and `..' in the path.
+
+\t\b2libpath.resolve\b4(\b7path\c9: \b3string\c9[, \b7lenient\c9: \b5boolean\c9]\b4)\c9: \b3string\c9
+\t\tResolve the provided file path.  If the path is relative, this function will resolve it relative to the current working directory.  If the path is absolute, only resolves references to `.' and `..'.  If \b5lenient\c9 is true, the resolved path does not have to point to an existing node in the filesystem.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO
+\tfilesystem\c9(\b72\c9), \b7vfs\c9(\b72\c9), \b7io\c9(\b72\c9)

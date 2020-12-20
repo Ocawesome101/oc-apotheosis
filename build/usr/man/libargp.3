@@ -1,0 +1,36 @@
+\b7NAME\c9
+\tlibargp - the Apotheosis argument parser library
+
+\b7DESCRIPTION
+\tlibargp\c9 provides two unique methods of argument parsing.  The first follows the style of OpenOS's \b4shell.parse\c9, while the second resembles GNU getopt.
+
+\b7FUNCTIONS
+\t\b2libargp.parse\b4(\b7...\b4)\c9: \b4table\c9, \b4table\c9
+\t\tSorts the provided varargs into two tables \b4args\c9 and \b4opts\c9.  Interprets `\b7-abcd\c9' as separate options \b7a\c9, \b7b\c9, \b7c\c9, and \b7d\c9;  interprets `\b7--foo=bar\c9' as expected;  interprets `\b7--foo bar\c9' as option `\b7foo\c9', then argument `\b7bar\c9'.
+
+\t\t\b4args\c9 is a simple array of strings.  Each key in \b4opts\c9 corresponds to a provided option, with the associated value being either the provided opt-arg or \b5true\c9.  For example, `--foo=bar' will set opts\b4[\b3"foo"\b4]\c9 = \b3"bar"\c9.
+
+\t\b2libargp.getopt\b4(\b7args\c9:\b4table\c9, \b7optstring\c9:\b3string\b4)\c9: \b4table\c9, \b4table\c9
+\t\tInterprets arguments in a style similar to GNU getopt.  It behaves almost identically, except for the following:
+
+\t*  If \b3optstring\c9 contains `\b7o:;\c9', then \b6getopt\c9 will interpret `\b7-o abc\c9' and `\b7-oabc\c9' identically.
+\t*  Long options are supported, automatically parsed, and unaffected by \b3optstring\c9.  They may be in the form `\b7--foo=bar\c9' or `\b7--foo bar\c9'.
+
+\tThe returned tables \b4args\c9 and \b4opts\c9 are identical to those returned by \b6libargp.parse\c9.  The argument \b4args \b7must\c9 be an array.
+
+\b7EXAMPLES\c9
+\t\b2libargp.parse\b4()\c9
+\t\tThe following example program uses \b2libargp.parse\b4()\c9 to parse command-line options.
+
+\t\t\b1local\c9 argp = \b2require\b4(\b3"libargp"\b4)
+
+\t\t\b1local\c9 args, opts = libargp.parse\b4(\c9...\b4)
+
+\t\t\b2print\b4(\b3"Arguments: "\c9, \b3table.concat\b4(\c9args\b4))
+
+\t\t\b1for\c9 opt, val \b1in \b2pairs\b4(\c9opts\b4) \b1do
+\t\t  \b2print\b4(\b2string.format\b4(\b3"Option: %s = %s"\c9, opt, \b2tostring\b4(val\b4)))
+\t\t\b1end\c9
+
+\b7REPORTING BUGS\c9
+\tPlease report bugs at \b4https://github.com/ocawesome101/apotheosis-coreutils/issues\c9.

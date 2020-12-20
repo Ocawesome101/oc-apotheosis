@@ -14,8 +14,9 @@ function lib.delete(path)
       local info = fs.stat(path .. "/" .. file)
       if info.isDirectory then
         lib.delete(path .. "/" .. file)
+      else
+        fs.remove(path .. "/" .. file)
       end
-      fs.remove(path .. "/" .. file)
     end
   end
   return fs.remove(path)

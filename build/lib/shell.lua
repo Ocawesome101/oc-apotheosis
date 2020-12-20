@@ -339,6 +339,7 @@ function shell.execute(...)
   local commands = split(shell.expand(table.concat(args, " ")), "[^%;]+")
   for i=1, #commands, 1 do
     local ok, err = execute(commands[i])
+    err = tostring(err)
     if not ok then
       shell.error("sh", err)
     end

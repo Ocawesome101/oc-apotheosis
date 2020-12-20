@@ -40,8 +40,8 @@ end
 -- EXTENSION: long option support, in the form '--opt=abc' or '--opt abc'.
 --            long options are automatically parsed and are unaffected by the
 --              optstring.
--- EXTENSION: '-o:;' allows '-o abc' alongside '-oabc'.
--- OMISSION: '-W;' does not allow '-Wfoo' -> '--foo'.
+-- EXTENSION: 'o:;' allows '-o abc' alongside '-oabc'.
+-- OMISSION: 'W;' does not allow '-Wfoo' -> '--foo'.
 function args.getopt(args, optstring)
   checkArg(1, args, "table")
   checkArg(2, optstring, "string")

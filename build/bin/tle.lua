@@ -9,6 +9,7 @@ function vt.set_cursor(x, y)
 end
 
 function vt.get_cursor()
+  --os.execute("stty raw -echo")
   io.write("\27[6n")
   local resp = ""
   repeat
@@ -16,6 +17,7 @@ function vt.get_cursor()
     resp = resp .. c
   until c == "R"
   local y, x = resp:match("\27%[(%d+);(%d+)R")
+  --os.execute("stty sane")
   return tonumber(x), tonumber(y)
 end
 
@@ -49,6 +51,7 @@ local function get_char(ascii)
 end
 
 function kbd.get_key()
+--  os.execute("stty raw -echo")
   local data = io.read(1)
   local key, flags
   if data == "\27" then
@@ -81,6 +84,7 @@ function kbd.get_key()
     key = get_char(data)
     flags = {ctrl = true}
   end
+  --os.execute("stty sane")
   return key, flags
 end
 
@@ -93,17 +97,17 @@ local buffers = {}
 local commands -- forward declaration so commands and load_file can access this
 local function load_file(file)
   local n = #buffers + 1
-  buffers[n] = {name=file, cline = 1, cpos = 0, scroll = 1, lines = {}, cached_lines = {}}
+  buffers[n] = {name=file, cline = 1, cpos = 0, scroll = 1, lines = {}, cache = {}}
   local handle = io.open(file, "r")
   cbuf = n
   if not handle then
     buffers[n].lines[1] = ""
     return
   end
-  handle:close()
-  for line in io.lines(file) do
+  for line in handle:lines() do
     buffers[n].lines[#buffers[n].lines + 1] = (line:gsub("\n", ""))
   end
+  handle:close()
   if commands and commands.h then commands.h() end
 end
 
@@ -113,7 +117,7 @@ if args[1] == "--help" then
 elseif args[1] then
   load_file(args[1])
 else
-  buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 0, lines = {""}, cached_lines = {}}
+  buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 0, lines = {""}, cache = {}}
 end
 
 local function truncate_name(n, bn)
@@ -158,18 +162,18 @@ end
 
 local function draw_buffer()
   w, h = vt.get_term_size()
-  io.write("\27[39;49m\27(B")
+  io.write("\27[39;49m")
   draw_open_buffers()
-  local top_line = buffers[cbuf].scroll
+  local buffer = buffers[cbuf]
+  local top_line = buffer.scroll
   for i=1, h - 2, 1 do
     local line = top_line + i - 1
-    if buffers[cbuf].cached_lines[line] ~= buffers[cbuf].lines[line] then
+    if buffer.cache[line] ~= buffer.lines[line] or buffer.lines[line] == nil then
       vt.set_cursor(1, i + 2)
-      draw_line(line, buffers[cbuf].lines[line])
-      buffers[cbuf].cached_lines[line] = buffers[cbuf].lines[line]
+      draw_line(line, buffer.lines[line])
+      buffer.cache[line] = buffer.lines[line]
     end
   end
-  io.write("\27(b")
 end
 
 local function update_cursor()
@@ -191,19 +195,20 @@ local function insert_character(char)
   buf.unsaved = true
   if char == "\n" then
     local text = ""
+    local old_cpos = buf.cpos
     if buf.cline > 1 then -- attempt to get indentation of previous line
       local prev = buf.lines[buf.cline]
       local indent = #prev - #(prev:gsub("^[%s]+", ""))
       text = (" "):rep(indent)
     end
     if buf.cpos > 0 then
-      text = buf.lines[buf.cline]:sub(-buf.cpos)
+      text = text .. buf.lines[buf.cline]:sub(-buf.cpos)
       buf.lines[buf.cline] = buf.lines[buf.cline]:sub(1,
                                           #buf.lines[buf.cline] - buf.cpos)
     end
     table.insert(buf.lines, buf.cline + 1, text)
     arrows.down()
-    buf.cpos = #buf.lines[buf.cline]
+    buf.cpos = old_cpos
     return
   end
   local ln = buf.lines[buf.cline]
@@ -266,8 +271,8 @@ arrows = {
       local dfe = #(buf.lines[buf.cline] or "") - buf.cpos
       buf.cline = buf.cline - 1
       if buf.cline < buf.scroll and buf.scroll > 0 then
-        buf.cached_lines = {}
         buf.scroll = buf.scroll - 1
+        buf.cache = {}
       end
       buf.cpos = #buf.lines[buf.cline] - dfe
     end
@@ -279,8 +284,8 @@ arrows = {
       local dfe = #(buf.lines[buf.cline] or "") - buf.cpos
       buf.cline = buf.cline + 1
       if buf.cline > buf.scroll + h - 3 then
-        buf.cached_lines = {}
         buf.scroll = buf.scroll + 1
+        buf.cache = {}
       end
       buf.cpos = #buf.lines[buf.cline] - dfe
     end
@@ -382,6 +387,9 @@ commands = {
       end
       buffers[cbuf].cpos = 0
       buffers[cbuf].unsaved = true
+      if buffers[cbuf].cline > #buffers[cbuf].lines then
+        buffers[cbuf].cline = #buffers[cbuf].lines
+      end
     end
   end,
   r = function()
@@ -452,13 +460,15 @@ commands = {
         end
       end
     end
-    io.write("\27[2J\27[1;1H\27[m\27(L\27(r\27[39m")
+    io.write("\27[2J\27[1;1H\27(r\27(L\27[m")
+    --os.execute("stty sane")
     os.exit()
   end
 }
 
 commands.h()
-io.write("\27(l\27(R\27[8m")
+io.write("\27[2J\27(R\27(l\27[8m")
+--os.execute("stty raw -echo")
 
 while true do
   draw_buffer()

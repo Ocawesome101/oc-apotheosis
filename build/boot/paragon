@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.6.0",
-  built   = "2020/12/18",
+  built   = "2020/12/20",
   builder = "ocawesome101@manjaro-pbp"
 }
 
@@ -1036,6 +1036,23 @@ do
       end
       return component[m]
     end, __metatable = {}})
+  end)
+  
+  k.hooks.add("sandbox", function()
+    -- `computer' API restrictions
+    k.sb.computer.getDeviceInfo = nil
+    k.sb.computer.shutdown = nil
+    setmetatable(k.sb.computer, {
+      __index = function(_, m)
+        if computer[m] then
+          if k.security.users.user() ~= 0 then
+            error(string.format("computer.%s: permission denied", m))
+          end
+          return computer[m]
+        end
+      end,
+      __metatable = {}
+    })
   end)
 end
 
@@ -3816,6 +3833,15 @@ end
 
 kio.dmesg("ksrc/loadinit.lua")
 
+local function pre_run()
+  if k.io.gpu then
+    local vts = k.vt.new(k.io.gpu, k.io.screen)
+    io.input(vts)
+    io.output(vts)
+    k.sched.getinfo():stderr(vts)
+  end
+end
+
 do
   if computer.freeMemory() < 8192 then
     kio.dmesg("NOTE: init may not load; low memory")
@@ -3825,7 +3851,7 @@ do
   if not ok then
     kio.panic(err)
   end
-  k.sched.spawn(function()ok(k)end, "[init]", 1)
+  k.sched.spawn(function()pre_run()ok(k)end, "[init]", 1)
 end
 
 k.sched.loop()

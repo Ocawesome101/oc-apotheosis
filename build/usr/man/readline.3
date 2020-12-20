@@ -1,0 +1,35 @@
+\b7NAME\c9
+\treadline - read a line of input from the user
+
+\b7SYNOPSIS
+\t\b1local\c9 readline = \b2require\b4(\b3"readline"\b4)
+
+\t\b1local\c9 line = readline\b4()
+
+\b7USAGE
+\t\b2readline\b4(\c9[\b7opts\c9:\b4table\c9]\b4)\c9: \b3string\c9
+
+\b7DESCRIPTION
+\treadline\c9 will read a line from the terminal and return it.
+
+\t\b7readline\c9 offers editing capabilities while the user is entering the line.  Text may be navigated with the cursor keys, and characters may be inserted or removed at any point in the line.
+
+\tThis version of \b7readline\c9 accepts a small number of options.  All options are optional.
+
+\t\t\b4{\c9
+\t\t  \b7buffer\c9 = \b3string\c9,
+\t\t  \b7history\c9 = \b2table\c9,
+\t\t  \b7actions\c9 = \b2table\c9
+\t\t\b4}\c9
+
+\tIf \b3buffer\c9 is set, it will override the default empty buffer.  This is useful in certain prompts.
+
+\tWhen \b2history\c9 is provided, \b7readline\c9 offers support for scrolling through the entered line history using the up and down cursor keys.
+
+\tWhen \b2actions\c9 is provided, custom actions may be defined for special keys such as \b2^I\c9 or \b2^M\c9.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO
+\tio\c9(\b72\c9)
