@@ -8,4 +8,8 @@
 \t\b2io.open\b4(\b7file\c9:\b3string\c9[, \b7mode\c9:\b3string\c9]\b4)\c9: \b5FILE*\c9 or \b5nil\c9, \b3string\c9
 \tOpens the provided \b3file\c9 using the provided \b3mode\c9 (must be one of: `a', `r', `w').  Returns \b5nil\c9 and an error message on failure.
 
+\t\b2io.input\b4(\c9[\b7file\c9:\b3string\c9 or \b5FILE*\c9]\b4)\c9: \b5FILE*\c9
+\t\tReturns the current input stream, by default the standard input.  If \b5file\c9 is provided, changes the input stream.
 
+\t\b2io.output\b4(\c9[\b7file\c9:\b3string\c9 or \b5FILE*\c9]\b4)\c9: \b5FILE*\c9
+\t\t
