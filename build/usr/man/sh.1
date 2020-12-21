@@ -1,11 +1,11 @@
 \b7NAME\c9
 \tsh - shell, the standard command language interpreter
 
-\b7SYNOPSIS
+\b7SYNOPSIS\c9
 \tsh
 
-DESCRIPTION
-\t\c9sh is the default command interpreter for the Apotheosis system.  It supports a subset of features from the standard Bourne shell.
+\b7DESCRIPTION\c9
+\t\b7\c9sh is the default command interpreter for the Apotheosis system.  It supports a subset of features from the standard Bourne shell.
 
 \t\b7sh\c9 currently supports:
 
@@ -23,8 +23,21 @@ DESCRIPTION
 
 \tAs the Lua scripting language is the natively supported language of OpenComputers, as well as both easier to learn and more powerful than Bourne shell scripting, the Apotheosis shell does not support advanced shell scripts.
 
+\b7ENVIRONMENT\c9
+\t\b7PATH\c9
+\t\tContains a semicolon-delimited list of all paths to search for a command.
+
+\t\b7PS1\c9
+\t\tA string specifying how to display the shell prompt.  See \b7ps1\c9(\b77\c9).
+
+\t\b7SHLVL\c9
+\t\tThe nested shell count.  Will be \b51\c9 for a top-level shell, i.e. the shell executed by \b7login\c9(\b71\c9).
+
+\t\b7PWD\c9
+\t\tThe current working directory.
+
 \b7NOTES\c9
-\tThe Monolith implementation of \b7sh\c9 differs only very slightly from the Apotheosis version.  Much of the codebase is identical excepting some system-specific API.
+\tThe Monolith implementation of \b7sh\c9 differs only very slightly from the Apotheosis version.  Much of the codebase is identical excepting some system-specific API calls.
 
 \b7AUTHOR\c9
 \tWritten by Ocawesome101.

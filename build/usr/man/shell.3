@@ -1,0 +1,41 @@
+\b7NAME\c9
+\tshell - API containing most of the shell
+
+\b7DESCRIPTION\c9
+\tThis API provides the backend for the shell \b7sh\c9(\b71\c9).  It controls command execution, command path resolution, aliases, and shell built-ins.
+
+\b7CONSTANTS\c9
+\t\b7shell.aliases\c9:\b4table\c9
+\t\tA table of all shell aliases.  Maps in the form aliases\b4[\b3command_alias\b4]\c9 = \b3aliased_command\c9.
+
+\t\b7shell.builtins\c9: \b4table\c9
+\t\tContains all built-in shell commands, in the form shell.builtins\b4[\b3command\b4]\c9 = \b2function\c9.
+
+\b7FUNCTIONS\c9
+\t\b2shell.error\b4(\b7cmd\c9:\b3string\c9, \b7err\c9:\b3string\b4)\c9
+\t\tEquivalent to \b2io.stderr:write\b4(\b2string.format\b4(\b3"%s: %s\\n", \b3cmd\c9, \b3err\b4))\c9.
+
+\t\b2shell.setAlias\b4(\b7k\c9:\b3string\c9, \b7v\c9:\b3string\b4)\c9
+\t\tSets a shell alias.
+
+\t\b2shell.expand\b4(\b7str\c9:\b3string\b4)\c9: \b3string\c9
+\t\tPerforms basic variable expansion and wildcard expansion on the provided string.
+
+\t\b2shell.resolve\b4(\b7cmd\c9:\b3string\b4)\c9: \b3string\c9 or \b5nil\c9, \b3string\c9
+\t\tAttempts to resolve the provided \b3cmd\c9 using the semicolon-separated entries in $\b7PATH\c9.
+
+\t\b2shell.split\b4(\b7str\c9:\b3string\b4)\c9: \b5table\c9
+\t\tSplits the provided \b3str\c9 into segments.  Interprets each single-quoted chunk as an individual segment and does not split it on whitespace.  For example, `echo FOO  BAR  BAZ' outputs `\b7FOO BAR BAZ\c9', while `\b7echo 'FOO  BAR  BAZ'\c9' outputs `\b7FOO  BAR  BAZ\c9'.
+
+\t\b2shell.execute\c9, \b2os.execute\b4(\b7...\c9: \b3strings\b4)\c9: \b5boolean\c9
+\t\tExecutes the provided command.  All arguments will be concatenated into a single, space-delimited string.  This string will be split on semicolons (\b7;\c9) and each token will be interpreted as a single, separate command.
+
+\b7ENVIRONMENT\c9
+\t\b7PATH\c9
+\t\tContains a semicolon-delimited list of all paths to search for a command.
+
+\b7COPYRIGHT\c9
+\tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO\c9
+\t\b7sh\c9(\b71\c9)

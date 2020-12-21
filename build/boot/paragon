@@ -28,7 +28,7 @@ _G._KINFO = {
   name    = "Paragon",
   version = "0.6.0",
   built   = "2020/12/20",
-  builder = "ocawesome101@manjaro-pbp"
+  builder = "ocawesome101@archlinux"
 }
 
 -- kernel i/o
@@ -255,12 +255,9 @@ function buffer.new(stream, mode)
   for c in mode:gmatch(".") do
     new.mode[c] = true
   end
-  local ts = tostring(new):gsub("table", "FILE")
   return setmetatable(new, {
     __index = buffer,
-    __tostring = function()
-      return ts
-    end,
+    __name = "FILE*",
     __metatable = {}
   })
 end
@@ -1033,6 +1030,23 @@ do
     k.sb.component = setmetatable({}, {__index = function(_,m)
       if k.security.users.user() ~= 0 then
         error(string.format("component.%s: permission denied", m))
+      end
+      if m == "proxy" then
+        return function(...)
+          local prx = assert(component.proxy(...))
+          local new = setmetatable({}, {__index = function(_, k)
+            if type(prx[k]) == "function" then
+              return function(...)
+                local result = table.pack(prx[k](...))
+                -- prevent huge amounts of component calls from freezing the
+                -- system entirely
+                coroutine.yield(0)
+                return table.unpack(result)
+              end
+            else
+            end
+          end})
+        end
       end
       return component[m]
     end, __metatable = {}})
@@ -3345,6 +3359,8 @@ function vt.new(gpu, screen)
     gpu.setForeground(_b)
     gpu.setBackground(_f)
     gpu.set(cx, cy, _c)
+    gpu.setForeground(fg)
+    gpu.setBackground(bg)
     for c in str:gmatch(".") do
       if mode == 0 then
         if c == "\n" then

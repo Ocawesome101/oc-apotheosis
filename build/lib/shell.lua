@@ -121,36 +121,6 @@ function shell.expand(str)
   return str
 end
 
-shell.vars = shell.expand -- backwards compatibility
-
-function shell.parse(...)
-  local params = {...}
-  local inopt = true
-  local cropt = ""
-  local args, opts = {}, {}
-  for i=1, #params, 1 do
-    local p = tostring(params[i])
-    if p == "--" then
-      inopt = false
-    elseif p:sub(1,2) == "--" and inopt then -- "long" option
-      local o = p:sub(3)
-      local op, vl = o:match([[([%w]+)=([%w%/%,%.%:%s%'%"%=]+)]]) -- I amaze myself with these patterns sometimes
-      if op and vl then
-        opts[op] = vl or true
-      else
-        opts[o] = true
-      end
-    elseif p:sub(1,1) == "-" and #p > 1 and inopt then -- "short" option
-      for opt in p:gmatch(".") do
-        opts[opt] = true
-      end
-    else
-      args[#args + 1] = p
-    end
-  end
-  return args, opts
-end
-
 function shell.resolve(cmd)
   if fs.stat(cmd) then
     return cmd
@@ -344,6 +314,7 @@ function shell.execute(...)
       shell.error("sh", err)
     end
   end
+  io.write("\27[39m")
   return true
 end
 

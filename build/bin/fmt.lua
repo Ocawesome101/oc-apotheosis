@@ -24,14 +24,16 @@ end
 
 local data = file:read("a")
 file:close()
+local buffer = ""
 local written = 0
 local inEsc, esc = false, char
 for char in data:gmatch(".") do
   if inEsc == 1 then
     if char == "\\" then
       inEsc = false
+      buffer = buffer .. char
     elseif char == "t" then
-      io.write("        ")
+      buffer = buffer .. "        "
       inEsc = false
       esc = nil
     elseif char:match("[cCbB]") then
@@ -43,17 +45,17 @@ for char in data:gmatch(".") do
                 (esc == "C" and 40) or
                 (esc == "b" and 90) or
                 (esc == "B" and 100)
-    io.write("\27[", base + tonumber(char), "m")
+    buffer = string.format("%s\27[%dm", buffer, base + tonumber(char))
     inEsc = false
     esc = nil
   elseif char == "\\" then
     inEsc = 1
   else
-    io.write(char)
+    buffer = buffer .. char
   end
 end
 
-io.write("\27[39m\n")
+io.write(buffer, "\27[39m\n")
 
 if not io.output().tty then
   io.output():close()

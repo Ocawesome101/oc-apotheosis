@@ -4,7 +4,7 @@ local shell = require("shell")
 local argp = require("argp")
 local vt = require("libvt")
 
-local args, opts = shell.parse(...)
+local args, opts = argp.parse(...)
 
 if (#args == 0 and io.input().tty) or opts.help then
   io.stderr:write("usage: more FILE\n")
