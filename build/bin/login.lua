@@ -40,7 +40,7 @@ while true do
     if not done then
       print("error in shell: " .. ret)
     end
-    goto nosleep
+    --goto nosleep
   end
   ::cont::
   os.sleep(3)

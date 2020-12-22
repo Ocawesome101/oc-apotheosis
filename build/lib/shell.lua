@@ -110,7 +110,7 @@ function shell.expand(str)
         local fpath = shell.resolve(split[i]:sub(1,-2))
         if fpath and fs.stat(fpath).isDirectory then
           split[i] = nil
-          for file in fs.list(fpath) do
+          for _, file in ipairs(fs.list(fpath) or {}) do
             table.insert(split, i, paths.concat(fpath, file))
           end
         end

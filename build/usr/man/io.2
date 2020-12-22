@@ -12,4 +12,19 @@
 \t\tReturns the current input stream, by default the standard input.  If \b5file\c9 is provided, changes the input stream.
 
 \t\b2io.output\b4(\c9[\b7file\c9:\b3string\c9 or \b5FILE*\c9]\b4)\c9: \b5FILE*\c9
-\t\t
+\t\tSimilar to \b2io.input\c9, but returns and modifies the current output stream.
+
+\t\b2io.write\b4(\b7...\c9: \b3strings\c9 or \b5numbers\b4)\c9
+\t\tEquivalent to \b2io.output\b4()\c9:\b2write\b4(\b7...\b4)\c9.
+
+\t\b2io.read\b4(\b7...\b4)\c9: \b7...\c9
+\t\tReads from the current input stream.  Equivalent to \b2io.input\b4()\c9:\b2read\b4(\b7...\b4)\c9.
+
+\t\b2io.lines\b4(\c9[\b7file\c9:\b3string\c9]\b4)\c9: \b2function\c9
+\t\tReturns an iterator which, when called, returns successive lines from either \b3file\c9 or the standard output.
+
+\b7COPYRIGHT\c9
+\tAPI design copyright (c) 1994-2020 Lua.org, PUC-Rio.  Implementation copyright (c) 2020 Ocawesome101 under the GNU GPLv3.
+
+\b7SEE ALSO\c9
+\t\b7libpath\c9(\b72\c9), \b7filesystem\c9(\b72\c9)
