@@ -1,3 +1,4 @@
+#!/usr/bin/env lua
 -- TLE - The Lua Editor --
 
 -- basic terminal interface library --
@@ -98,16 +99,16 @@ local commands -- forward declaration so commands and load_file can access this
 local function load_file(file)
   local n = #buffers + 1
   buffers[n] = {name=file, cline = 1, cpos = 0, scroll = 1, lines = {}, cache = {}}
-  local handle = io.open(file, "r")
+  local handle = io.open(file)
   cbuf = n
   if not handle then
     buffers[n].lines[1] = ""
     return
   end
-  for line in handle:lines() do
+  handle:close()
+  for line in io.lines(file) do
     buffers[n].lines[#buffers[n].lines + 1] = (line:gsub("\n", ""))
   end
-  handle:close()
   if commands and commands.h then commands.h() end
 end
 
@@ -168,10 +169,13 @@ local function draw_buffer()
   local top_line = buffer.scroll
   for i=1, h - 2, 1 do
     local line = top_line + i - 1
-    if buffer.cache[line] ~= buffer.lines[line] or buffer.lines[line] == nil then
+    if buffer.cache[line] ~= buffer.lines[line] then
       vt.set_cursor(1, i + 2)
       draw_line(line, buffer.lines[line])
       buffer.cache[line] = buffer.lines[line]
+    elseif not buffer.lines[line] then
+      vt.set_cursor(1, i + 2)
+      draw_line(line)
     end
   end
 end
@@ -344,6 +348,7 @@ local function prompt(text)
     end
   until (c == "m" and (f or {}).ctrl)
   io.write("\27[39;49m")
+  buffers[cbuf].cache = {}
   return inbuf
 end
 
@@ -375,6 +380,7 @@ commands = {
     i = math.min(i, #buffers[cbuf].lines)
     buffers[cbuf].cline = i
     buffers[cbuf].scroll = i - math.min(i, h // 2)
+    buffers[cbuf].cache = {}
   end,
   k = function()
     local del = prompt("# of lines to delete:")
@@ -390,6 +396,7 @@ commands = {
       if buffers[cbuf].cline > #buffers[cbuf].lines then
         buffers[cbuf].cline = #buffers[cbuf].lines
       end
+      buffer[cbuf].cache = {}
     end
   end,
   r = function()
@@ -398,6 +405,7 @@ commands = {
     for i = 1, #buffers[cbuf].lines, 1 do
       buffers[cbuf].lines[i] = buffers[cbuf].lines[i]:gsub(search_pattern,
                                                                 replace_pattern)
+      buffers[cbuf].cache[i] = nil
     end
   end,
   h = function()
@@ -461,14 +469,11 @@ commands = {
       end
     end
     io.write("\27[2J\27[1;1H\27(r\27(L\27[m")
-    --os.execute("stty sane")
     os.exit()
   end
 }
 
-commands.h()
 io.write("\27[2J\27(R\27(l\27[8m")
---os.execute("stty raw -echo")
 
 while true do
   draw_buffer()

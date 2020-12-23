@@ -24,9 +24,11 @@ end
 shell.builtins = {
   echo = function(...) print(table.concat({...}, " ")) os.exit(0) end,
   set = function(...)
-    local set, opts = shell.parse(...)
+    local set, opts = require("argp").parse(...)
+    local process = require("process")
     if #set == 0 or opts.p then
-      for k,v in pairs(process.info().env) do
+      local env = process.info().env
+      for k,v in pairs(env) do
         print(string.format("%s=%s", k, tostring(v):gsub("\27", "\\27")))
       end
     else
@@ -38,7 +40,7 @@ shell.builtins = {
     os.exit(0)
   end,
   alias = function(...)
-    local ali, opts = shell.parse(...)
+    local ali, opts = require("argp").parse(...)
     if #ali == 0 then
       for k, v in pairs(shell.aliases) do
         print(string.format("alias %s='%s'", k, v))
@@ -269,7 +271,7 @@ local function execute(str)
         end
         setmetatable(process.info().env, {__index = shadow, __newindex = function(t, k, v)
           rawset(shadow, k, v)                                                                     
-        end})
+        end, __pairs = function() return pairs(shadow) end})
       end
       local ok, ret = xpcall(func, debug.traceback, table.unpack(ex.cmd, 2))
       if not ok and ret then

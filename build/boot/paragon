@@ -28,7 +28,7 @@ _G._KINFO = {
   name    = "Paragon",
   version = "0.6.0",
   built   = "2020/12/23",
-  builder = "ocawesome101@manjaro-pbp"
+  builder = "ocawesome101@archlinux"
 }
 
 -- kernel i/o
@@ -252,6 +252,7 @@ function buffer.new(stream, mode)
     closed = false,
     bufsize = math.max(512, math.min(8 * 1024, computer.freeMemory() / 8))
   }
+  mode = mode or "r"
   for c in mode:gmatch(".") do
     new.mode[c] = true
   end
@@ -1086,7 +1087,8 @@ do
   end
 
   local function protect(tbl, name)
-    local protected = setmetatable(tbl, {
+    local protected = setmetatable({}, {
+      __index = tbl,
       __newindex = function()
         error((name or "lib") .. " is protected")
       end,
@@ -1637,6 +1639,9 @@ do
     end
     local handle, err = node:open(path, mode)
     if not handle then
+      if err == path then
+        return nil, file..": no such file or directory"
+      end
       return nil, err
     end
     local stream = streamify(node, handle)
@@ -3826,13 +3831,21 @@ function _G.loadfile(file, mode, env)
     return nil, err
   end
   local data = handle:read("a")
+  -- TODO: better shebang things
+  if data:sub(1,1) == "#" then
+    data = "--" .. data
+  end
   handle:close()
   return load(data, "="..file, mode or "bt", env or k.sb or _G)
 end
 
 function _G.dofile(file, ...)
   checkArg(1, file, "string")
-  return assert(loadfile(file))(...)  
+  local ok, err = loadfile(file)
+  if not ok then
+    error(err)
+  end
+  return ok(...)
 end
 
 

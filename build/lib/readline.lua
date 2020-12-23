@@ -59,7 +59,11 @@ local function readline(opts)
   local opos = 0
   local function redraw()
     if obuf ~= buffer then -- buffer has changed
-      io.write(string.format("\27[%dD", oblen - opos), (clr and "\27[J" or ""), buffer, " \27[D", string.format("\27[%dD", pos))
+      if buffer:sub(1,-2) == obuf then -- added a char
+        io.write(buffer:sub(-1))
+      else
+        io.write(string.format("\27[%dD", oblen - opos), (clr and "\27[J" or ""), buffer, " \27[D", string.format("\27[%dD", pos))
+      end
     else
       if opos > pos then
         io.write(string.format("\27[%dC", opos - pos))
