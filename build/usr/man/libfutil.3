@@ -8,6 +8,9 @@
 \t\b2libfutil.delete\b4(\b7path\c9:\b3string\b4)\c9: \b5boolean\c9 or \b5nil\c9, \b3string\c9
 \t\tRecursively remove the directory at \b3path\c9.  \b3path\c9 must be absolute.
 
+\t\b2libfutil.copy\b4(\b7src\c9:\b3string\c9, \b7dest\c9:\b3string\c9[, \b7verbose\c9: \b5boolean\c9]\b4)\c9: \b5boolean\c9 or \b5nil\c9, \b3string\c9
+\t\tRecursively copies \b3src\c9 to \b7dest\c9.  If \b5verbose\c9 is true, prints \b7'src' -> 'dest'\c9 for every file or directory copied.  Can copy files.
+
 \b7COPYRIGHT\c9
 \tCopyright (c) 2020 Ocawesome101 under the GNU GPLv3.
 

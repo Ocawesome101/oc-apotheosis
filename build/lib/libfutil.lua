@@ -29,7 +29,7 @@ local function copy_file(f1, f2, v)
     print(string.format("'%s' -> '%s'", f1, f2))
   end
   local info = fs.stat(f2)
-  if info.isDirectory then
+  if info and info.isDirectory then
     f2 = f2 .. "/" .. (f1:match(".+/(.-)/$") or f1:match(".+/(.-)$"))
   end
   local fd1 = io.open(f1, "r")
@@ -53,6 +53,11 @@ local function find_mnt(path)
       potential = try
     end
   end
+  for k, v in pairs(mounts) do
+    if v.path == potential then
+      return k
+    end
+  end
 end
 
 local function rcpy(src, dest, rec, verbose)
@@ -69,7 +74,7 @@ local function rcpy(src, dest, rec, verbose)
   end
   local sfiles = fs.list(src) or {}
   local dinfo = fs.stat(dest)
-  local disdir = (dinfo or {}).isDirectory
+  local disdir = (dinfo or {isDirectory = true}).isDirectory
   if not disdir then
     return nil, "cannot copy a directory into a file"
   end
@@ -77,8 +82,8 @@ local function rcpy(src, dest, rec, verbose)
     fs.makeDirectory(dest)
   end
   for i=1, #sfiles, 1 do
-    local sfull = path.concat(src, files[i])
-    local dfull = path.concat(dest, files[i])
+    local sfull = path.concat(src, sfiles[i])
+    local dfull = path.concat(dest, sfiles[i])
     if fs.stat(sfull).isDirectory then
       local ok, err = rcpy(sfull, dfull, rec, verbose)
       if not ok and err then
@@ -97,7 +102,7 @@ end
 function lib.copy(src, dest, verbose)
   checkArg(1, src, "string")
   checkArg(2, dest, "string")
-  checkArg(3, verbose, "boolean")
+  checkArg(3, verbose, "boolean", "nil")
   local src, err = path.resolve(src)
   if not src then
     return nil, err
