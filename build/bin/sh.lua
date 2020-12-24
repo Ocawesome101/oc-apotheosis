@@ -43,6 +43,8 @@ end
 
 os.setenv("PS1", os.getenv("PS1") or "\\u|\\s-\\v: \\w\\$ ")
 
+process.sethandler(process.signals.SIGINT, function() io.write("^C\n",parse_prompt(os.getenv("PS1"))) end)
+
 local hist = {}
 while not exit do
   io.write(parse_prompt(os.getenv("PS1")))

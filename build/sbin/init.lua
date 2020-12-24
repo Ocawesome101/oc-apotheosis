@@ -17,7 +17,7 @@ local k = ...
 local log = k.io.dmesg
 local _INFO = {
   name    = "Epitome",
-  version = "0.7.1",
+  version = "0.8.0-dev",
 }
 
 -- init logger --

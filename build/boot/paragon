@@ -26,9 +26,9 @@ end
 
 _G._KINFO = {
   name    = "Paragon",
-  version = "0.6.0",
-  built   = "2020/12/23",
-  builder = "ocawesome101@archlinux"
+  version = "0.7.0-dev",
+  built   = "2020/12/24",
+  builder = "ocawesome101@manjaro-pbp"
 }
 
 -- kernel i/o
@@ -1347,7 +1347,8 @@ do
       stdin = p and p.io.input or {},
       stdout = p and p.io.output or {},
       stderr = p and p.io.stderr or {},
-      owner = iua
+      owner = iua,
+      sighandlers = {}
     }
     new.env.UID = new.owner
     new.env.USER = k.security.users.userByID(new.owner)
@@ -1505,7 +1506,7 @@ do
     function k.sb.process.sethandler(sig, func)
       checkArg(1, sig, "number")
       checkArg(2, func, "function")
-      k.sched.info().sighandlers[sig] = func
+      k.sched.getinfo().sighandlers[sig] = func
       return true
     end
 
@@ -1629,10 +1630,11 @@ do
   end
   
   -- io.open(file:string[, mode:string]): table or nil, string
-  --   Returns a buffered file handle to 
+  --   Returns a buffered file stream.
   function io.open(file, mode)
     checkArg(1, file, "string")
     checkArg(2, mode, "string", "nil")
+    mode = mode or "r"
     local node, path = vfs.resolve(file)
     if not node then
       return nil, path
@@ -1675,6 +1677,7 @@ do
   end
 
   function io.lines(file, ...)
+    checkArg(1, file, "string", "nil")
     if not file then
       return io.input():lines(...)
     end

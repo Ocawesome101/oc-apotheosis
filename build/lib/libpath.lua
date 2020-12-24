@@ -27,6 +27,7 @@ end
 function lib.resolve(path, lenient)
   checkArg(1, path, "string")
   checkArg(1, lenient, "boolean", "nil")
+  local ret
   if path:sub(1,1) ~= "/" then
     local pwd = os.getenv("PWD")
     local try = lib.concat(pwd, path)

@@ -106,7 +106,7 @@ local function readline(opts)
       end
       return buffer
     elseif not char:byte() then
-      os.exit()
+      --os.exit()
     elseif char:byte() > 31 and char:byte() < 127 then
       buffer = buffer:sub(1, #buffer - pos) ..
                 char .. buffer:sub(#buffer - pos + 1)
