@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.7.0-dev",
-  built   = "2020/12/24",
+  built   = "2020/12/25",
   builder = "ocawesome101@manjaro-pbp"
 }
 
@@ -756,6 +756,9 @@ do
   function vfs.mount(prx, path)
     checkArg(1, prx, "table")
     checkArg(2, path, "string")
+    if not k.security.acl.hasPermission(k.security.users.user(), "MOUNT_FS") then
+      return nil, "permission denied"
+    end
     path = "/" .. table.concat(segments(path), "/")
     if mnt[path] then
       return nil, "there is already a filesystem mounted there"
@@ -785,6 +788,9 @@ do
   --   Tries to unmount the proxy at the provided path.
   function vfs.umount(path)
     checkArg(1, path, "string")
+    if not k.security.acl.hasPermission(k.security.users.user(), "MOUNT_FS") then
+      return nil, "permission denied"
+    end
     path = "/" .. table.concat(segments(path), "/")
     if not mnt[path] then
       return nil, "no such device"
@@ -937,6 +943,7 @@ do
     users.prime = nil
     old_rawset(k.sb.package.loaded.security.users, "prime", nil)
     upasswd = passwd
+    k.security.acl.passwd = passwd
     return true
   end
 
@@ -1071,6 +1078,39 @@ do
   end)
 end
 
+-- access control lists....ish. --
+-- these allow more granular control over what permissions certain users have
+
+do
+  local acl = {}
+  acl.upasswd = {}
+
+  local perms = {
+    KILL_PROCESS = 1,
+    FILE_ACCESS = 2,
+    MOUNT_FS = 4,
+    KILL_NOT_OWNED = 8,
+    WRITE_NOT_OWNED = 16,
+    RESTRICTED_API = 32,
+    NO_SUDO_PASSWORD = 512
+  }
+  function acl.hasPermission(uid, pms)
+    checkArg(1, uid, "number")
+    checkArg(2, pms, "number", "string")
+    pms = perms[pms] or pms
+    if type(pms) == "string" then
+      return nil, "no such permission: "..pms
+    end
+    local udat = acl.upasswd[uid] or (uid==0 and {permissions=1023})
+    return uid == 0 or not (udat.permissions & pms) == 0
+  end
+
+  -- TODO: implement ability to give permissions to specific processes
+  -- regardless of their owner
+
+  k.security.acl = acl
+end
+
 -- sandbox hooks for wrapping kernel-level APIs more securely
 
 do
@@ -1105,6 +1145,7 @@ do
     k.sb.sha2 = protect(k.sb.k.sha2)
     k.sb.ec25519 = protect(k.sb.k.ec25519)
     k.sb.security = protect(k.sb.k.security)
+    old_rawset(k.sb.security, "acl", protect(k.sb.k.security.acl))
     old_rawset(k.sb.security, "users", protect(k.sb.k.security.users))
   end)
 end

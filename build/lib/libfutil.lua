@@ -5,17 +5,20 @@ local path = require("path")
 
 local lib = {}
 
-function lib.delete(path)
+function lib.delete(path, verbose)
   checkArg(1, path, "string")
   local info, err = fs.stat(path)
   if info == nil then
-    return false, err
-  elseif info.isDirectory then
+    return nil, err
+  else
     local stat = true
     for _, file in ipairs(fs.list(path)) do
       local info = fs.stat(path .. "/" .. file)
+      if verbose then
+        print(string.format("removing '%s'", path.."/"..file))
+      end
       if info.isDirectory then
-        lib.delete(path .. "/" .. file)
+        lib.delete(path .. "/" .. file, verbose)
       else
         fs.remove(path .. "/" .. file)
       end

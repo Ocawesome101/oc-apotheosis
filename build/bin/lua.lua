@@ -49,9 +49,9 @@ local hist = {}
 while true do
   io.stdout:write("> ")
   local inp = readline({history = hist})
-  local exec, err = load("print("..inp..")", "=stdin")
+  local exec, err = load("print("..inp..")", "=stdin", "bt", env)
   if not exec then
-    exec, err = load(inp, "=stdin")
+    exec, err = load(inp, "=stdin", "bt", env)
   end
   if not exec then
     print(err)

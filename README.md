@@ -11,20 +11,24 @@ If you intend to do development work, run `setup.sh` first.
 `push-repos.sh` pushes all four repositories to GitHub.  It is intended for my personal use only.
 
 ## Project status
-- [ ] Apotheosis core
+- [ ] Apotheosis core system
   - [ ] Paragon
     - [X] core kernel
     - [X] multi-user
     - [X] process-based scheduler
     - [X] filesystem abstraction
-    - [-] standard Lua emulation (~85%)
-    - [X] full VT100 emulation
-    - [ ] security features
+    - [-] standard Lua emulation (~90%)
+    - [X] (mostly) full VT100 emulation
+    - [-] security features
+      - [X] multi-user
+      - [-] user restrictions
+      - [ ] per-user permissions
+      - [X] kernel API restrictions in userspace
     - [ ] at least one unmanaged filesystem driver
   - [ ] Epitome
-    - [ ] services
-    - [ ] scripts
-    - [ ] runlevels
+    - [-] services
+    - [X] scripts
+    - [X] runlevels
   - [ ] Coreutils
     - [ ] basic shell utilities
     - [ ] package manager
