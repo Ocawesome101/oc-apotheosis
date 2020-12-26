@@ -92,7 +92,7 @@ local function readline(opts)
           pcall(actions[c])
         end
       end
-    elseif char == "\127" then
+    elseif char == "\8" then
       buffer = buffer:sub(1, #buffer - pos - 1) ..
                     buffer:sub(#buffer - pos + 1)
     elseif char == "\n" or char == "\13" then

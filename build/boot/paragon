@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.7.0-dev",
-  built   = "2020/12/25",
+  built   = "2020/12/26",
   builder = "ocawesome101@manjaro-pbp"
 }
 
@@ -3602,77 +3602,51 @@ function vt.new(gpu, screen)
     return true
   end
 
-  local keys = {
-    lcontrol = 0x1D,
-    rcontrol = 0x9D,
-  }
-
   local keyboards = {}
-  local ctrlHeld = false
   for k,v in pairs(component.invoke(screen or gpu.getScreen(),"getKeyboards"))do
     keyboards[v] = true
   end
 
+  -- this key input logic is... a lot simpler than i initially thought
+  -- it would be
   local function key_down(sig, kb, char, code)
     if keyboards[kb] then
-      if char == 0 and code >= 200 then
-        local add = ctrlHeld and "\27[1;5" or "\27["
-        if code == keys.lcontrol or code == keys.rcontrol then
-          ctrlHeld = true
-          add = ""
-        elseif code == 211 then -- delete
-          add = add .. "3~"
-        elseif code == 200 then -- up
-          add = add .. "A"
-        elseif code == 201 then -- page up
-          -- TODO: do pgUp/pgDn behave differently when ctrl is held?
-          add = "\27[5~"
-        elseif code == 203 then -- left
-          add = add .. "D"
-        elseif code == 205 then -- right
-          add = add .. "C"
-        elseif code == 208 then -- down
-          add = add .. "B"
-        elseif code == 209 then -- page down
-          add = add .. "6~"
-        end
-        rb = rb .. add
-        if ec then stream:write((add:gsub("\27", "^"))) end
-      elseif raw then
-        if char ~= 0 then
-          local c
-          if ctrlHeld and (char > 31 and char < 127) then
-            c = string.char(char - 96)
-          elseif char == 8 then
-            c = string.char(127)
-          else
-            c = (char > 255 and unicode.char or string.char)(char)
-          end
-          rb = rb .. c
-          if ec then stream:write(c == "\8" and "\8 \8" or c) end
-        end
-      else
-        if char == 8 then
-          if #rb > 0 and rb:sub(-1) ~= "\n" then
-            rb = unicode.sub(rb, 1, -2)
-            if ec then stream:write("\8 \8") end
-          end
-        elseif char == 13 then
-          if ec then stream:write("\n") end
-          rb = rb .. "\n"
-        elseif char ~= 0 then
-          local c = unicode.char(char)
-          if ec then stream:write(c) end
-          rb = rb .. c
-        end
+      local c
+      if char > 0 then
+        c = (char > 255 and unicode.char or string.char)(char)
+      -- up 00; down 208; right 205; left 203
+      elseif code == 200 then
+        c = "\27[A"
+      elseif code == 208 then
+        c = "\27[B"
+      elseif code == 205 then
+        c = "\27[C"
+      elseif code == 203 then
+        c = "\27[D"
       end
-    end
-  end
 
-  local function key_up(sig, kb, char, code)
-    if keyboards[kb] then
-      if code == keys.lcontrol or code == keys.rcontrol then
-        ctrlHeld = false
+      c = c or ""
+      if char == 13 and not raw then
+        rb = rb .. "\n"
+      else
+        rb = rb .. c
+      end
+      if ec then
+        if char == 13 and not raw then
+          stream:write("\n")
+        elseif char < 32 and char > 0 then
+          -- i n l i n e   l o g i c   f t w
+          stream:write("^"..string.char(
+            (char < 27 and char + 96) or
+            (char == 27 and "[") or
+            (char == 28 and "\\") or
+            (char == 29 and "]") or
+            (char == 30 and "~") or
+            (char == 31 and "?")
+          ):upper())
+        else
+          stream:write(c)
+        end
       end
     end
   end
@@ -3686,8 +3660,7 @@ function vt.new(gpu, screen)
   end
 
   local id1 = k.evt.register("key_down", key_down)
-  local id2 = k.evt.register("key_up", key_up)
-  local id3 = k.evt.register("clipboard", clipboard)
+  local id2 = k.evt.register("clipboard", clipboard)
 
   -- special character handling functions
   local chars = {
@@ -3735,7 +3708,6 @@ function vt.new(gpu, screen)
     self.closed = true
     k.evt.unregister(id1)
     k.evt.unregister(id2)
-    k.evt.unregister(id3)
     return true
   end
 

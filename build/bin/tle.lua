@@ -109,7 +109,7 @@ local function load_file(file)
   for line in io.lines(file) do
     buffers[n].lines[#buffers[n].lines + 1] = (line:gsub("\n", ""))
   end
-  if commands and commands.h then commands.h() end
+  if commands and commands.t then commands.t() end
 end
 
 if args[1] == "--help" then
@@ -169,13 +169,10 @@ local function draw_buffer()
   local top_line = buffer.scroll
   for i=1, h - 2, 1 do
     local line = top_line + i - 1
-    if buffer.cache[line] ~= buffer.lines[line] then
+    if buffer.cache[line] ~= buffer.lines[line] or buffer.lines[line] == nil then
       vt.set_cursor(1, i + 2)
       draw_line(line, buffer.lines[line])
       buffer.cache[line] = buffer.lines[line]
-    elseif not buffer.lines[line] then
-      vt.set_cursor(1, i + 2)
-      draw_line(line)
     end
   end
 end
@@ -257,11 +254,13 @@ local function try_get_highlighter()
   local also_try = os.getenv("HOME").."/.local/share/TLE/"..ext..".lua"
   local ok, ret = pcall(dofile, also_try)
   if ok then
+    print("OK", also_try)
     return ret
   else
     io.stderr:write(ret)
     ok, ret = pcall(dofile, try)
     if ok then
+      print("OK", try)
       return ret
     end
   end
@@ -380,7 +379,6 @@ commands = {
     i = math.min(i, #buffers[cbuf].lines)
     buffers[cbuf].cline = i
     buffers[cbuf].scroll = i - math.min(i, h // 2)
-    buffers[cbuf].cache = {}
   end,
   k = function()
     local del = prompt("# of lines to delete:")
@@ -396,7 +394,6 @@ commands = {
       if buffers[cbuf].cline > #buffers[cbuf].lines then
         buffers[cbuf].cline = #buffers[cbuf].lines
       end
-      buffer[cbuf].cache = {}
     end
   end,
   r = function()
@@ -405,10 +402,9 @@ commands = {
     for i = 1, #buffers[cbuf].lines, 1 do
       buffers[cbuf].lines[i] = buffers[cbuf].lines[i]:gsub(search_pattern,
                                                                 replace_pattern)
-      buffers[cbuf].cache[i] = nil
     end
   end,
-  h = function()
+  t = function()
     buffers[cbuf].highlighter = try_get_highlighter()
     buffers[cbuf].cache = {}
   end,
@@ -473,6 +469,7 @@ commands = {
   end
 }
 
+commands.t()
 io.write("\27[2J\27(R\27(l\27[8m")
 
 while true do
