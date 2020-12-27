@@ -27,8 +27,8 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.8.0-dev",
-  built   = "2020/12/26",
-  builder = "ocawesome101@"
+  built   = "2020/12/27",
+  builder = "ocawesome101@manjaro-pbp"
 }
 
 -- kernel i/o
@@ -418,7 +418,6 @@ kio.dmesg(kio.loglevels.INFO, "ksrc/kdrv.lua")
 local kdrv = {}
 
 kdrv.fs = {}
-kdrv.tty = {}
 kdrv.net = {}
 
 -- BROFS filesystem driver
@@ -683,6 +682,78 @@ do
   kdrv.fs.managed = drv
 end
 
+
+-- internet card support --
+
+kio.dmesg("ksrc/net/internet.lua")
+
+do
+  if component.list("internet")() then
+    local card = component.proxy(component.list("internet")())
+    local inet = {}
+    local _sock = {}
+
+    function _sock:read(n)
+      if not self.socket then
+        return nil, "socket is closed"
+      end
+      return self.socket.read(n)
+    end
+
+    function _sock:write(data)
+      if not self.socket then
+        return nil, "socket is closed"
+      end
+      while #value > 0 do
+        local wr, rs = self.socket.write(value)
+        if not wr then
+          return nil, rs
+        end
+        value = value:sub(wr + 1)
+      end
+      return true
+    end
+
+    function _sock:seek()
+      return nil, "bad file descriptor"
+    end
+
+    function _sock:close()
+      if self.socket then
+        self.socket.close()
+        self.socket = nil
+      end
+    end
+
+    function inet.socket(host, port)
+      checkArg(1, host, "string")
+      checkArg(2, port, "number", "nil")
+      if port then
+        host = host .. ":" .. port
+      end
+
+      local raw, err = card.connect(host)
+      if not raw then
+        return nil, err
+      end
+
+      return setmetatable({socket = raw}, {__index = _sock, __metatable = {}})
+    end
+
+    function inet.open(host, port)
+      local sock, reason = inet.socket(host, port)
+      if not sock then
+        return nil, reason
+      end
+      return kio.buffer.new(sock, "rw")
+    end
+
+    kdrv.net.internet = inet
+  else
+    -- else, don't initialize module at all
+    kio.dmesg(kio.loglevels.WARNING, "no internet card detected; not initializing wrapper")
+  end
+end
 
 -- Minitel
 
@@ -3748,6 +3819,7 @@ k.hooks.add("sandbox", function()
     package = k.sb.package,
     process = k.sb.process,
     ec25519 = k.sb.ec25519,
+    internet = table.copy(k.drv.net.internet or {}),
     security = k.sb.security,
     hostname = table.copy(k.hostname),
     computer = k.sb.computer,
