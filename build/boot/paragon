@@ -79,6 +79,7 @@ function _pipe:read(n)
   if self.closed and #self.buf == 0 then return nil end
   if n == "l" then
     while (not self.buf:find("\n")) and self.strict do
+      if self.closed then return self.buf end
       coroutine.yield()
     end
     local s = self.buf:find("\n") or #self.buf
@@ -91,6 +92,7 @@ function _pipe:read(n)
     return ret
   end
   while #self.buf < n and self.strict do
+    if self.closed then return self.buf end
     coroutine.yield()
   end
   n = math.min(n, #self.buf)

@@ -54,15 +54,21 @@ local function readline(opts)
       end,
     }
   })
+  opts.pwchar = tostring(opts.pwchar or ""):sub(1,1)
+  if opts.pwchar == "" then opts.pwchar = nil end
   local oblen = 0
   local obuf = buffer
   local opos = 0
   local function redraw()
     if obuf ~= buffer then -- buffer has changed
       if buffer:sub(1,-2) == obuf then -- added a char
-        io.write(buffer:sub(-1))
+        io.write(opts.pwchar ~= "" and opts.pwchar or buffer:sub(-1))
       else
-        io.write(string.format("\27[%dD", oblen - opos), (clr and "\27[J" or ""), buffer, " \27[D", string.format("\27[%dD", pos))
+        io.write(
+          string.format("\27[%dD", oblen - opos),
+          (clr and "\27[J" or ""),
+          (opts.pwchar and opts.pwchar:rep(#buffer) or buffer),
+          " \27[D", string.format("\27[%dD", pos))
       end
     else
       if opos > pos then

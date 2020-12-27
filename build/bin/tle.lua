@@ -169,10 +169,11 @@ local function draw_buffer()
   local top_line = buffer.scroll
   for i=1, h - 1, 1 do
     local line = top_line + i - 1
-    if buffer.cache[line] ~= buffer.lines[line] or buffer.lines[line] == nil then
+    if (not buffer.cache[line]) or
+        (buffer.lines[line] and buffer.lines[line] ~= buffer.cache[line]) then
       vt.set_cursor(1, i + 1)
       draw_line(line, buffer.lines[line])
-      buffer.cache[line] = buffer.lines[line]
+      buffer.cache[line] = buffer.lines[line] or "~"
     end
   end
 end
@@ -214,6 +215,10 @@ local function insert_character(char)
   end
   local ln = buf.lines[buf.cline]
   if char == "\8" then
+    buf.cache[buf.cline] = nil
+    buf.cache[buf.cline - 1] = nil
+    buf.cache[buf.cline + 1] = nil
+    buf.cache[#buf.lines] = nil
     if buf.cpos < #ln then
       buf.lines[buf.cline] = ln:sub(0, #ln - buf.cpos - 1)
                                                   .. ln:sub(#ln - buf.cpos + 1)

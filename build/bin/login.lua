@@ -6,6 +6,7 @@ if tonumber(os.getenv("UID")) ~= 0 then
 end
 
 local users = require("users")
+local readline = require("readline")
 local hostname = require("hostname")
 
 while true do
@@ -13,9 +14,9 @@ while true do
   print(string.format("\n%s %s\n", _KINFO.name, _KINFO.version))
   local hnames = hostname.get()
   io.write((hnames.minitel or hnames.gert or hnames.standard or "localhost") .. " login: ")
-  local name = io.read("l")
+  local name = readline {}
   io.write("password: \27[8m")
-  local pass = io.read("l")
+  local pass = readline {pwchar = "*"}
   io.write("\27[0m\n")
   local uid, ok, err -- goto scoping
   do
