@@ -1,7 +1,9 @@
 -- the OpenOS version of the minitel lib.  slightly modified to compensate for
 -- API differences
+-- also has argument checking
 
 local computer = require("computer")
+local uevent = require("uevent")
 local event = require("event")
 local net = {}
 net.mtu = 4096
@@ -19,15 +21,24 @@ function net.genPacketID()
 end
 
 function net.usend(to,port,data,npID)
+ checkArg(1, to, "string")
+ checkArg(2, port, "number")
+ checkArg(3, data, "string")
+ checkArg(4, npID, "string")
  computer.pushSignal("net_send",0,to,port,data,npID)
 end
 
 function net.rsend(to,port,data,block)
+  checkArg(4, block, "boolean", "nil")
  local pid, stime = net.genPacketID(), computer.uptime() + net.streamdelay
  computer.pushSignal("net_send",1,to,port,data,pid)
  if block then return pid end
+ local rpid
  repeat
-  _,rpid = event.pull(0.5,"net_ack")
+  local a,b = event.pull(0.5)
+  if a=="net_ack" then
+   rpid=b
+  end
  until rpid == pid or computer.uptime() > stime
  if not rpid then return false end
  return true
@@ -36,6 +47,9 @@ end
 -- ordered packet delivery, layer 4?
 
 function net.send(to,port,ldata)
+ checkArg(1, to, "string")
+ checkArg(2, port, "number")
+ checkArg(3, ldata, "string")
  local tdata = {}
  if ldata:len() > net.mtu then
   for i = 1, ldata:len(), net.mtu do
@@ -111,11 +125,13 @@ local function socket(addr,port,sclose)
 end
 
 function net.open(to,port)
+ checkArg(1, to, "string")
+ checkArg(2, port, "number")
  if not net.rsend(to,port,"openstream") then return false, "no ack from host" end
  local st = computer.uptime()+net.streamdelay
  local est = false
  while true do
-  _,from,rport,data = event.pull(net.streamdelay, "net_msg")
+  local _,from,rport,data = event.pull(net.streamdelay)
   if to == from and rport == port then
    if tonumber(data) then
     est = true
@@ -132,7 +148,7 @@ function net.open(to,port)
  data = tonumber(data)
  sclose = ""
  repeat
-  _,from,nport,sclose = event.pull("net_msg")
+  _,from,nport,sclose = uevent.filter("net_msg")
  until from == to and nport == data
  return socket(to,data,sclose)
 end

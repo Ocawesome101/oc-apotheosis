@@ -1,0 +1,12 @@
+/boot/paragon:2600: bad argument #1 to 'pairs' (table expected, got nil)
+stack traceback:
+	machine:805: in function <machine:798>
+	[C]: in function 'pairs'
+	/boot/paragon:2600: in function </boot/paragon:2598>
+	(...tail calls...)
+	/boot/paragon:3084: in main chunk
+	[C]: in function 'xpcall'
+	machine:798: in global 'xpcall'
+	/init.lua:29: in local 'ok'
+	bios:57: in local 'boot_managed'
+	bios:69: in main chunk
