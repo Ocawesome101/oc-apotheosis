@@ -14,5 +14,3 @@ print("init: sending SIGKILL to all processes")
 for _, pid in pairs(process.list()) do
   process.signal(pid, process.signals.SIGKILL)
 end
-
-require("computer").shutdown()

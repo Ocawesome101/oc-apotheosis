@@ -279,7 +279,7 @@ local function execute(str)
         if type(ret) == "table" then
           ret = require("serializer").serialize(ret)
         end
-        io.stderr:write(ret,"\n")
+        --io.stderr:write(ret,"\n")
         for i, _ in pairs(pids) do
           process.signal(pids[i], process.signals.SIGKILL)
         end

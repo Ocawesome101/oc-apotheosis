@@ -1,22 +1,25 @@
 -- GETTY implementation --
 
-error("AAAAAAAAAAA")
+local computer = require("computer")
+io.write("\27[2J")
 
-local ok, err
+local ok, err, lname
 if computer.runlevel() == 1 then
   ok, err = loadfile("/bin/sh.lua")
+  lname = "sh"
 else
   ok, err = loadfile("/bin/login.lua")
+  lname = "login"
 end
 if not ok then
-  io.write(err,"\n")
+  io.stderr:write(err,"\n")
 else
-  require("process").spawn(ok, "login")
+  require("process").spawn(ok, lname)
 end
 
 while true do
   local sig = table.pack(coroutine.yield())
-  if sig[1] == "thread_died" then
+  if sig[1] == "process_died" and sig[4] then
     print(sig[4])
   end
 end

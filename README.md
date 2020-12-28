@@ -18,11 +18,11 @@ If you intend to do development work, run `setup.sh` first.
     - [X] process-based scheduler
     - [X] filesystem abstraction
     - [-] standard Lua emulation (~90%)
-    - [X] (mostly) full VT100 emulation
+    - [X] \(mostly\) full VT100 emulation
     - [-] security features
       - [X] multi-user
       - [-] user restrictions
-      - [ ] per-user permissions
+      - [-] per-user permissions
       - [X] kernel API restrictions in userspace
     - [ ] at least one unmanaged filesystem driver
   - [ ] Epitome

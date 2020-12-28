@@ -26,9 +26,9 @@ end
 
 _G._KINFO = {
   name    = "Paragon",
-  version = "0.8.0-dev",
-  built   = "2020/12/27",
-  builder = "ocawesome101@"
+  version = "0.8.7-dev",
+  built   = "2020/12/28",
+  builder = "ocawesome101@manjaro-pbp"
 }
 
 -- kernel i/o
@@ -422,346 +422,6 @@ local kdrv = {}
 kdrv.fs = {}
 kdrv.net = {}
 
--- BROFS filesystem driver
-
-do
-  local drv = {}
-
-  drv.name = "BROFS driver"
-  drv.authors = {"Ocawesome101"}
-  drv.license = {"GPLv3"}
-
-  local temp = {}
-
-  local function readSectors(d, s, e)
-    local r = ""
-    for i=s, e, 1 do
-      r = r .. (d.readSector(i) or "")
-    end
-    return r
-  end
-
-  local function strip(t)
-    return t:gsub("/+", "")
-  end
-
-  function temp:spaceUsed()
-    return math.huge
-  end
-
-  function temp:spaceTotal()
-    return self.dev.getCapacity()
-  end
-
-  function temp:isReadOnly()
-    return true
-  end
-
-  local hn = 0
-  function temp:open(file, mode)
-    checkArg(1, file, "string")
-    checkArg(2, mode, "string", "nil")
-    file = strip(file)
-    kio.dmesg(kio.loglevels.DEBUG, "tryopen "..file)
-    if self.ftable[file] then
-      local new = {
-        ptr = 0,
-        file = self.ftable[file]
-      }
-      local n = hn + 1
-      hn = n
-      self.handles[n] = new
-      kio.dmesg(kio.loglevels.DEBUG, "opened as " ..n)
-      return n
-    else
-      return kio.error("FILE_NOT_FOUND")
-    end
-  end
-
-  function temp:read(h, n)
-    checkArg(1, h, "number")
-    checkArg(2, n, "number")
-    if not self.handles[h] then
-      return nil, "bad file descriptor"
-    end
-    h = self.handles[h]
-    if h.ptr >= h.file.size then
-      return nil
-    end
-    if h.ptr + n >= h.file.size then
-      n = h.file.size - h.ptr
-    end
-    local s, e = h.file.start + (h.ptr // 512), h.file.start + (h.ptr // 512) + (n // 512)
-    local approx = readSectors(self.dev, s, e)
-    local t = (h.ptr - ((h.ptr // 512) * 512))
-    h.ptr = h.ptr + n
-    local data = approx:sub(t, t + n)
-    return data
-  end
-
-  function temp:seek(h, whence, offset)
-    checkArg(1, h, "number")
-    checkArg(2, whence, "string", "nil")
-    checkArg(3, offset, "number", "nil")
-    if not self.handles[h] then
-      return nil, "bad file descriptor"
-    end
-    h = self.handles[h]
-    whence, offset = whence or "cur", offset or 0
-    whence = (whence == "cur" and h.ptr) or (whence == "set" and 0) or (whence == "end" and h.file.size)
-    if type(whence) == "string" then
-      return nil, "invalid 'whence' argument (expected 'cur', 'set', or 'end')"
-    end
-    h.ptr = math.max(0, math.min(h.file.size, whence + offset))
-    return h.ptr
-  end
-
-  function temp:write(h, data)
-    return kio.error("DEV_RO")
-  end
-
-  function temp:close(h)
-    checkArg(1, h, "number")
-    self.handles[h] = nil
-  end
-
-  function temp:makeDirectory()
-    return kio.error("DEV_RO")
-  end
-
-  function temp:rename()
-    return kio.error("DEV_RO")
-  end
-
-  function temp:exists(file)
-    checkArg(1, file, "string")
-    file = strip(file)
-    kio.dmesg(kio.loglevels.DEBUG, "exists", file)
-    if self.ftable[file] then
-      return true
-    end
-    return false
-  end
-
-  function temp:isDirectory()
-    return false -- directories are unsupported
-  end
-
-  function temp:lastModified()
-    return 0
-  end
-
-  function temp:stat()
-    return {
-      permissions = 292, -- 100100100, r--r--r--
-      -- TODO: possibly more fields?
-    }
-  end
-
-  function temp:list()
-    local files = {}
-    for k, v in pairs(self.ftable) do
-      table.insert(files, k)
-    end
-    return files
-  end
-
-  function temp:size(file)
-    checkArg(1, file, "string")
-    file = strip(file)
-    if not self.ftable(file) then
-      return kio.error("FILE_NOT_FOUND")
-    end
-    return self.ftable[file].size
-  end
-
-  function temp:remove()
-    return kio.error("DEV_RO")
-  end
-
-  function temp:setLabel(label)
-    checkArg(1, label, "string")
-    if self.dev.setLabel then
-      return self.dev.setLabel(label)
-    else
-      self.label = label
-    end
-  end
-
-  function temp:getLabel()
-    if self.dev.getLabel then
-      return self.dev.getLabel()
-    else
-      return self.label
-    end
-  end
-
-  function drv.create(prx, label) -- takes an unmanaged drive (or a partition / file wrapper) and returns a BROFS interface
-    kio.dmesg(kio.loglevels.DEBUG, "reading BROFS file table")
-    local ftbl = ""
-    ftbl = readSectors(prx, 1, 2)
-    local ftable = {}
-    local inpack = "<I2I2I2I1I1c24"
-    for i=1, 32, 1 do
-      local n = (i - 1) * 32 + 1
-      if n == 0 then n = 1 end
-      kio.dmesg(kio.loglevels.DEBUG, n.." "..n+31)
-      local seg = ftbl:sub(n, n + 31)
-      local start, size, prealloc, flags, _, fname = string.unpack(inpack, seg)
-      kio.dmesg(kio.loglevels.DEBUG, "BROFS: "..table.concat({start,size,fname}," "))
-      if flags == 0 then
-        kio.dmesg(kio.loglevels.DEBUG, "BROFS: file flags < 1")
-        break
-      end
-      -- rid us of trailing \0s in the filename
-      fname = fname:gsub("\0", "")
-      -- file size is stored in approximate sectors but we need the exact count
-      local last = prx.readSector(start + size - 1)
-      last = last:gsub("\0", "")
-      local xsize = (size - 1) * 512 + #last
-      local ent = {
-        start = start,
-        size = xsize,
-        sect = size
-        -- NOTE: prealloc is not used as the generated interface is read-only
-      }
-      ftable[fname] = ent
-    end
-    return setmetatable({dev = prx, ftable = ftable, handles = {}, label = label or (prx.getLabel and prx.getLabel()) or "BROFS"}, {__index = temp})
-  end
-
-  kdrv.fs.brofs = drv
-end
-
--- managed filesystem "driver"
-
-do
-  local drv = {}
-  drv.name = "managed filesystem driver"
-  drv.authors = {"Ocawesome101"}
-  drv.license = {"GPLv3"}
-
-  local default = {}
-  setmetatable(default, {
-    __index = function(_, k)
-      default[k] = function(self, ...)
-        if self.dev[k] then
-          --local args={...}
-          --for i=1,#args,1 do args[i]=tostring(args[i])end
-          --kio.dmesg(kio.loglevels.PANIC, "INVOKE::"..k..":"..table.concat(args,","))
-          return self.dev[k](...)
-        else
-          error((string.format("attempt to call field '%s' (a nil value)", k)))
-        end
-      end
-      return default[k]
-    end
-  })
-  
-  function default:stat(file)
-    if not self.dev.exists(file) then
-      return nil, file .. ": file not found"
-    end
-    return {
-      permissions = self:isReadOnly() and 365 or 511,
-      isDirectory = self:isDirectory(file),
-      owner       = -1,
-      group       = -1,
-      lastModified= self:lastModified(file),
-      size        = self:size(file),
-    }
-  end
-  
-  function drv.create(prx)
-    checkArg(1, prx, "table", "string")
-    if type(prx) == "string" then prx = component.proxy(prx) end
-    return setmetatable({dev = prx,
-                         fstype = "managed",
-                         address = prx.address
-                       }, {__index = default})
-  end
-
-  kdrv.fs.managed = drv
-end
-
-
--- internet card support --
-
-kio.dmesg("ksrc/net/internet.lua")
-
-do
-  if component.list("internet")() then
-    local card = component.proxy(component.list("internet")())
-    local inet = {}
-    local _sock = {}
-
-    function _sock:read(n)
-      if not self.socket then
-        return nil, "socket is closed"
-      end
-      return self.socket.read(n)
-    end
-
-    function _sock:write(data)
-      if not self.socket then
-        return nil, "socket is closed"
-      end
-      while #value > 0 do
-        local wr, rs = self.socket.write(value)
-        if not wr then
-          return nil, rs
-        end
-        value = value:sub(wr + 1)
-      end
-      return true
-    end
-
-    function _sock:seek()
-      return nil, "bad file descriptor"
-    end
-
-    function _sock:close()
-      if self.socket then
-        self.socket.close()
-        self.socket = nil
-      end
-    end
-
-    function inet.socket(host, port)
-      checkArg(1, host, "string")
-      checkArg(2, port, "number", "nil")
-      if port then
-        host = host .. ":" .. port
-      end
-
-      local raw, err = card.connect(host)
-      if not raw then
-        return nil, err
-      end
-
-      return setmetatable({socket = raw}, {__index = _sock, __metatable = {}})
-    end
-
-    function inet.open(host, port)
-      local sock, reason = inet.socket(host, port)
-      if not sock then
-        return nil, reason
-      end
-      return kio.buffer.new(sock, "rw")
-    end
-
-    kdrv.net.internet = inet
-  else
-    -- else, don't initialize module at all
-    kio.dmesg(kio.loglevels.WARNING, "no internet card detected; not initializing wrapper")
-  end
-end
-
--- Minitel
-
-kio.dmesg(kio.loglevels.INFO, "ksrc/net/minitel.lua")
-
-
 
 -- vfs
 
@@ -945,8 +605,7 @@ _G.k = {}
 k.args    = kargs
 k.io      = kio
 k.info    = _KINFO
-k.process = sched
-k.drv     = kdrv
+k.drv     = kdrv or {}
 
 -- various hooks called on different actions --
 
@@ -973,13 +632,11 @@ end
 
 do
   -- some default hooks
-  local function sbld(iomt)
+  local function sbld()
     function k.sb.load(x, name, mode, env)
       return load(x, name, mode, env or k.sb)
     end
-    setmetatable(k.sb.io, iomt)
     k.sb.k.vfs = table.copy(vfs)
-    k.sb.k.iomt = nil
     k.sb.k.io.gpu = kio.gpu -- otherwise metatable weirdness happens
     k.sb.k.sb = nil -- just in case
   end
@@ -1168,8 +825,9 @@ do
     NO_SUDO_PASSWORD = 512
   }
   function acl.hasPermission(uid, pms)
-    checkArg(1, uid, "number")
+    checkArg(1, uid, "number", "nil")
     checkArg(2, pms, "number", "string")
+    uid = uid or k.security.users.user()
     pms = perms[pms] or pms
     if type(pms) == "string" then
       return nil, "no such permission: "..pms
@@ -1492,8 +1150,10 @@ do
     if not procs[pid] then
       return nil, "no such process"
     end
+    local allow = k.security.acl.hasPermission(nil, "KILL_PROCESS")
     local proc = procs[pid]
-    if proc.owner == s.getinfo().owner or s.getinfo().owner == 0 then
+    if allow and (proc.owner == s.getinfo().owner 
+                  or s.getinfo().owner == 0) then
       proc:handle(sig)
     else
       return kio.error("PERMISSION_DENIED")
@@ -1653,7 +1313,6 @@ do
   end)
 end
 
----#include "ksrc/thread.lua"
 -- hostname --
 
 do
@@ -1678,7 +1337,7 @@ do
   end)
 
   k.hooks.add("hnget", function(t)
-    t.standard = k.sched.getinfo().env.HOSTNAME or "localhost"
+    t.standard = (k.sched.getinfo() or {env={}}).env.HOSTNAME or "localhost"
   end)
 
   k.hostname = h
@@ -1698,11 +1357,11 @@ do
     __index = function(self, key)
       local info = k.sched.getinfo()
       if key == "stdin" then
-        return info:stdin()
+        return info.io.stdin
       elseif key == "stdout" then
-        return info:stdout()
+        return info.io.stdout
       elseif key == "stderr" then
-        return info:stderr()
+        return info.io.stderr
       end
     end,
     __newindex = function(self, key, value)
@@ -1719,7 +1378,6 @@ do
     end,
     __metatable = {}
   }
-  k.iomt = iomt
   setmetatable(io, iomt)
 
   local st = {}
@@ -1799,6 +1457,7 @@ do
   end
 
   k.hooks.add("sandbox", function()
+    setmetatable(k.sb.io, iomt)
     function k.sb.print(...)
       local args = table.pack(...)
       for i=1, args.n, 1 do
@@ -1907,7 +1566,7 @@ do
     local p = computer.pushSignal
     function computer.pushSignal(...)
       local s = table.pack(...)
-      kio.dmesg(kio.loglevels.DEBUG, string.format("PUSH %s %s %s", tostring(s[1]), tostring(s[2]), tostring(s[3])))
+      --kio.dmesg(kio.loglevels.DEBUG, string.format("PUSH %s %s %s", tostring(s[1]), tostring(s[2]), tostring(s[3])))
       p(...)
     end
   end
@@ -2560,7 +2219,7 @@ do
     local p = computer.pushSignal
     function computer.pushSignal(...)
       local s = table.pack(...)
-      kio.dmesg(kio.loglevels.DEBUG, string.format("PUSH %s %s %s", tostring(s[1]), tostring(s[2]), tostring(s[3])))
+      --kio.dmesg(kio.loglevels.DEBUG, string.format("PUSH %s %s %s", tostring(s[1]), tostring(s[2]), tostring(s[3])))
       p(...)
     end
   end
@@ -3096,6 +2755,530 @@ do
 
     return result
   end
+end
+
+
+-- BROFS filesystem driver
+
+do
+  local drv = {}
+
+  drv.name = "BROFS driver"
+  drv.authors = {"Ocawesome101"}
+  drv.license = {"GPLv3"}
+
+  local temp = {}
+
+  local function readSectors(d, s, e)
+    local r = ""
+    for i=s, e, 1 do
+      r = r .. (d.readSector(i) or "")
+    end
+    return r
+  end
+
+  local function strip(t)
+    return t:gsub("/+", "")
+  end
+
+  function temp:spaceUsed()
+    return math.huge
+  end
+
+  function temp:spaceTotal()
+    return self.dev.getCapacity()
+  end
+
+  function temp:isReadOnly()
+    return true
+  end
+
+  local hn = 0
+  function temp:open(file, mode)
+    checkArg(1, file, "string")
+    checkArg(2, mode, "string", "nil")
+    file = strip(file)
+    kio.dmesg(kio.loglevels.DEBUG, "tryopen "..file)
+    if self.ftable[file] then
+      local new = {
+        ptr = 0,
+        file = self.ftable[file]
+      }
+      local n = hn + 1
+      hn = n
+      self.handles[n] = new
+      kio.dmesg(kio.loglevels.DEBUG, "opened as " ..n)
+      return n
+    else
+      return kio.error("FILE_NOT_FOUND")
+    end
+  end
+
+  function temp:read(h, n)
+    checkArg(1, h, "number")
+    checkArg(2, n, "number")
+    if not self.handles[h] then
+      return nil, "bad file descriptor"
+    end
+    h = self.handles[h]
+    if h.ptr >= h.file.size then
+      return nil
+    end
+    if h.ptr + n >= h.file.size then
+      n = h.file.size - h.ptr
+    end
+    local s, e = h.file.start + (h.ptr // 512), h.file.start + (h.ptr // 512) + (n // 512)
+    local approx = readSectors(self.dev, s, e)
+    local t = (h.ptr - ((h.ptr // 512) * 512))
+    h.ptr = h.ptr + n
+    local data = approx:sub(t, t + n)
+    return data
+  end
+
+  function temp:seek(h, whence, offset)
+    checkArg(1, h, "number")
+    checkArg(2, whence, "string", "nil")
+    checkArg(3, offset, "number", "nil")
+    if not self.handles[h] then
+      return nil, "bad file descriptor"
+    end
+    h = self.handles[h]
+    whence, offset = whence or "cur", offset or 0
+    whence = (whence == "cur" and h.ptr) or (whence == "set" and 0) or (whence == "end" and h.file.size)
+    if type(whence) == "string" then
+      return nil, "invalid 'whence' argument (expected 'cur', 'set', or 'end')"
+    end
+    h.ptr = math.max(0, math.min(h.file.size, whence + offset))
+    return h.ptr
+  end
+
+  function temp:write(h, data)
+    return kio.error("DEV_RO")
+  end
+
+  function temp:close(h)
+    checkArg(1, h, "number")
+    self.handles[h] = nil
+  end
+
+  function temp:makeDirectory()
+    return kio.error("DEV_RO")
+  end
+
+  function temp:rename()
+    return kio.error("DEV_RO")
+  end
+
+  function temp:exists(file)
+    checkArg(1, file, "string")
+    file = strip(file)
+    kio.dmesg(kio.loglevels.DEBUG, "exists", file)
+    if self.ftable[file] then
+      return true
+    end
+    return false
+  end
+
+  function temp:isDirectory()
+    return false -- directories are unsupported
+  end
+
+  function temp:lastModified()
+    return 0
+  end
+
+  function temp:stat()
+    return {
+      permissions = 292, -- 100100100, r--r--r--
+      -- TODO: possibly more fields?
+    }
+  end
+
+  function temp:list()
+    local files = {}
+    for k, v in pairs(self.ftable) do
+      table.insert(files, k)
+    end
+    return files
+  end
+
+  function temp:size(file)
+    checkArg(1, file, "string")
+    file = strip(file)
+    if not self.ftable(file) then
+      return kio.error("FILE_NOT_FOUND")
+    end
+    return self.ftable[file].size
+  end
+
+  function temp:remove()
+    return kio.error("DEV_RO")
+  end
+
+  function temp:setLabel(label)
+    checkArg(1, label, "string")
+    if self.dev.setLabel then
+      return self.dev.setLabel(label)
+    else
+      self.label = label
+    end
+  end
+
+  function temp:getLabel()
+    if self.dev.getLabel then
+      return self.dev.getLabel()
+    else
+      return self.label
+    end
+  end
+
+  function drv.create(prx, label) -- takes an unmanaged drive (or a partition / file wrapper) and returns a BROFS interface
+    kio.dmesg(kio.loglevels.DEBUG, "reading BROFS file table")
+    local ftbl = ""
+    ftbl = readSectors(prx, 1, 2)
+    local ftable = {}
+    local inpack = "<I2I2I2I1I1c24"
+    for i=1, 32, 1 do
+      local n = (i - 1) * 32 + 1
+      if n == 0 then n = 1 end
+      kio.dmesg(kio.loglevels.DEBUG, n.." "..n+31)
+      local seg = ftbl:sub(n, n + 31)
+      local start, size, prealloc, flags, _, fname = string.unpack(inpack, seg)
+      kio.dmesg(kio.loglevels.DEBUG, "BROFS: "..table.concat({start,size,fname}," "))
+      if flags == 0 then
+        kio.dmesg(kio.loglevels.DEBUG, "BROFS: file flags < 1")
+        break
+      end
+      -- rid us of trailing \0s in the filename
+      fname = fname:gsub("\0", "")
+      -- file size is stored in approximate sectors but we need the exact count
+      local last = prx.readSector(start + size - 1)
+      last = last:gsub("\0", "")
+      local xsize = (size - 1) * 512 + #last
+      local ent = {
+        start = start,
+        size = xsize,
+        sect = size
+        -- NOTE: prealloc is not used as the generated interface is read-only
+      }
+      ftable[fname] = ent
+    end
+    return setmetatable({dev = prx, ftable = ftable, handles = {}, label = label or (prx.getLabel and prx.getLabel()) or "BROFS"}, {__index = temp})
+  end
+
+  kdrv.fs.brofs = drv
+end
+
+-- managed filesystem "driver"
+
+do
+  local drv = {}
+  drv.name = "managed filesystem driver"
+  drv.authors = {"Ocawesome101"}
+  drv.license = {"GPLv3"}
+
+  local default = {}
+  setmetatable(default, {
+    __index = function(_, k)
+      default[k] = function(self, ...)
+        if self.dev[k] then
+          --local args={...}
+          --for i=1,#args,1 do args[i]=tostring(args[i])end
+          --kio.dmesg(kio.loglevels.PANIC, "INVOKE::"..k..":"..table.concat(args,","))
+          return self.dev[k](...)
+        else
+          error((string.format("attempt to call field '%s' (a nil value)", k)))
+        end
+      end
+      return default[k]
+    end
+  })
+  
+  function default:stat(file)
+    if not self.dev.exists(file) then
+      return nil, file .. ": file not found"
+    end
+    return {
+      permissions = self:isReadOnly() and 365 or 511,
+      isDirectory = self:isDirectory(file),
+      owner       = -1,
+      group       = -1,
+      lastModified= self:lastModified(file),
+      size        = self:size(file),
+    }
+  end
+  
+  function drv.create(prx)
+    checkArg(1, prx, "table", "string")
+    if type(prx) == "string" then prx = component.proxy(prx) end
+    return setmetatable({dev = prx,
+                         fstype = "managed",
+                         address = prx.address
+                       }, {__index = default})
+  end
+
+  kdrv.fs.managed = drv
+end
+
+
+-- internet card support --
+
+kio.dmesg("ksrc/net/internet.lua")
+
+do
+  if component.list("internet")() then
+    local card = component.proxy(component.list("internet")())
+    local inet = {}
+    local _sock = {}
+
+    function _sock:read(n)
+      if not self.socket then
+        return nil, "socket is closed"
+      end
+      return self.socket.read(n)
+    end
+
+    function _sock:write(data)
+      if not self.socket then
+        return nil, "socket is closed"
+      end
+      while #value > 0 do
+        local wr, rs = self.socket.write(value)
+        if not wr then
+          return nil, rs
+        end
+        value = value:sub(wr + 1)
+      end
+      return true
+    end
+
+    function _sock:seek()
+      return nil, "bad file descriptor"
+    end
+
+    function _sock:close()
+      if self.socket then
+        self.socket.close()
+        self.socket = nil
+      end
+    end
+
+    function inet.socket(host, port)
+      checkArg(1, host, "string")
+      checkArg(2, port, "number", "nil")
+      if port then
+        host = host .. ":" .. port
+      end
+
+      local raw, err = card.connect(host)
+      if not raw then
+        return nil, err
+      end
+
+      return setmetatable({socket = raw}, {__index = _sock, __metatable = {}})
+    end
+
+    function inet.open(host, port)
+      local sock, reason = inet.socket(host, port)
+      if not sock then
+        return nil, reason
+      end
+      return kio.buffer.new(sock, "rw")
+    end
+
+    kdrv.net.internet = inet
+  else
+    -- else, don't initialize module at all
+    kio.dmesg(kio.loglevels.WARNING, "no internet card detected; not initializing wrapper")
+  end
+end
+
+-- Minitel
+
+kio.dmesg(kio.loglevels.INFO, "ksrc/net/minitel.lua")
+
+do
+  -- this is mostly a straight-up port of the OpenOS service
+  -- slightly modified to work with the Paragon kernel's feature set
+  -- and re-indented to match the rest of the code
+  -- also all comments are completely stripped
+
+  local component = component
+  local computer = computer
+  local event = k.evt
+
+  local cfg = {
+    debug = not not kargs["mtel.debug"],
+    port = tonumber(kargs["mtel.modem-port"]) or 4096,
+    retry = tonumber(kargs["mtel.retry"]) or 10,
+    retrycount = tonumber(kargs["mtel.retry-count"]) or 10,
+    route = not not kargs["mtel.route"]
+  }
+
+  cfg.sroutes = {}
+  local rcache = setmetatable({}, {__index = cfg.sroutes})
+  cfg.rctime = 15
+  local pqueue = {}
+
+  local log
+  local function dprint(...)
+    if cfg.debug then
+      log = log or io.open("/mtel-dbg.log", "a")
+      if log then
+        log:write(table.concat({...}, " ").."\n")
+      end
+    end
+  end
+  k.hooks.add("shutdown", function()
+    if log then log:close() end
+  end)
+
+  local hostname = k.hostname.get()
+  hostname = hostname.minitel or hostname.standard
+
+  local modems = {}
+  for a, t in component.list("modem", true) do
+    modems[#modems + 1] = component.proxy(a)
+    modems[#modems].open(cfg.port)
+  end
+
+  for a, t in component.list("tunnel", true) do
+    modems[#modems + 1] = component.proxy(a)
+  end
+  
+  local function genPacketID()
+    local id = ""
+    for i=1, 16, 1 do
+      id = id .. string.char(math.random(32, 126))
+    end
+    return id
+  end
+
+  local function sendPacket(packetID,packetType,dest,sender,vPort,data,repeatingFrom)
+    if rcache[dest] then
+      dprint("Cached", rcache[dest][1],"send",rcache[dest][2],cfg.port,packetID,packetType,dest,sender,vPort,data)
+      if component.type(rcache[dest][1]) == "modem" then
+        component.invoke(rcache[dest][1],"send",rcache[dest][2],cfg.port,packetID,packetType,dest,sender,vPort,data)
+      elseif component.type(rcache[dest][1]) == "tunnel" then
+        component.invoke(rcache[dest][1],"send",packetID,packetType,dest,sender,vPort,data)
+      end
+    else
+      dprint("Not cached", cfg.port,packetID,packetType,dest,sender,vPort,data)
+      for k,v in pairs(modems) do
+        -- do not send message back to the wired or linked modem it came from
+        -- the check for tunnels is for short circuiting `v.isWireless()`, which does not exist for tunnels
+        if v.address ~= repeatingFrom or (v.type ~= "tunnel" and v.isWireless()) then
+          if v.type == "modem" then
+            v.broadcast(cfg.port,packetID,packetType,dest,sender,vPort,data)
+          elseif v.type == "tunnel" then
+            v.send(packetID,packetType,dest,sender,vPort,data)
+          end
+        end
+      end
+    end
+  end
+
+  local function pruneCache()
+    for k,v in pairs(rcache) do
+      dprint(k,v[3],computer.uptime())
+      if v[3] < computer.uptime() then
+        rcache[k] = nil
+        dprint("pruned "..k.." from routing cache")
+      end
+    end
+    for k,v in pairs(pcache) do
+      if v < computer.uptime() then
+      pcache[k] = nil
+      dprint("pruned "..k.." from packet cache")
+      end
+    end
+  end
+
+  local function checkPCache(packetID)
+    dprint(packetID)
+    for k, v in pairs(pcache) do
+      dprint(k)
+      if k == packetID then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function processPacket(_,localModem,from,pport,_,packetID,packetType,dest,sender,vPort,data)
+    pruneCache()
+    if pport == cfg.port or pport == 0 then -- for linked cards
+      dprint(cfg.port,vPort,packetType,dest)
+      if checkPCache(packetID) then return end
+      if dest == hostname then
+        if packetType == 1 then
+          sendPacket(genPacketID(),2,sender,hostname,vPort,packetID)
+        end
+        if packetType == 2 then
+          dprint("Dropping "..data.." from queue")
+          pqueue[data] = nil
+          computer.pushSignal("net_ack",data)
+        end
+        if packetType ~= 2 then
+          computer.pushSignal("net_msg",sender,vPort,data)
+        end
+      elseif dest:sub(1,1) == "~" then -- broadcasts start with ~
+        computer.pushSignal("net_broadcast",sender,vPort,data)
+      elseif cfg.route then -- repeat packets if route is enabled
+        sendPacket(packetID,packetType,dest,sender,vPort,data,localModem)
+      end
+      if not rcache[sender] then -- add the sender to the rcache
+        dprint("rcache: "..sender..":", localModem,from,computer.uptime())
+        rcache[sender] = {localModem,from,computer.uptime()+cfg.rctime}
+      end
+      if not pcache[packetID] then -- add the packet ID to the pcache
+        pcache[packetID] = computer.uptime()+cfg.pctime
+      end
+    end
+  end
+
+  event.register("modem_message", processPacket)
+
+  local function queuePacket(_,ptype,to,vPort,data,npID)
+    npID = npID or genPacketID()
+    if to == hostname or to == "localhost" then
+      computer.pushSignal("net_msg",to,vPort,data)
+      computer.pushSignal("net_ack",npID)
+      return
+    end
+    pqueue[npID] = {ptype,to,vPort,data,0,0}
+    dprint(npID,table.unpack(pqueue[npID]))
+  end
+
+  event.register("net_send", queuePacket)
+
+  local function packetPusher()
+    for k,v in pairs(pqueue) do
+      if v[5] < computer.uptime() then
+        dprint(k,v[1],v[2],hostname,v[3],v[4])
+        sendPacket(k,v[1],v[2],hostname,v[3],v[4])
+        if v[1] ~= 1 or v[6] == cfg.retrycount then
+          pqueue[k] = nil
+        else
+          pqueue[k][5]=computer.uptime()+cfg.retry
+          pqueue[k][6]=pqueue[k][6]+1
+        end
+      end
+    end
+  end
+
+  event.register("net_ack", dprint)
+
+  local function ppthread()
+    while true do
+      coroutine.yield(0)
+      packetPusher()
+    end
+  end
+
+  k.hooks.add("uspace", function()
+    k.sched.spawn(ppthread, "[kworker-mtel]")
+  end)
 end
 
 
@@ -3841,9 +4024,9 @@ do
         screen.bound = gpu.addr
         local close = new.close
         function new:close()
-          close(new)
           gpu.bound = false
           screen.bound = false
+          close(new)
         end
         return new
       end
@@ -3855,8 +4038,13 @@ do
     return function()
       local new = open_pty()
       if new then
-        return kio.buffer.new(new, "rw")
+        local str = kio.buffer.new(new, "rw")
+        str:setvbuf("no")
+        str.bufferSize = 0
+        str.tty = true
+        return str
       end
+      return nil
     end
   end
 
@@ -4015,6 +4203,10 @@ do
   local iomt = k.iomt
   k.iomt = nil
   k.hooks.sandbox(iomt)
+  function sb.package.loaded.computer.shutdown(rb)
+    k.hooks.shutdown()
+    computer.shutdown(rb)
+  end
 end
 
 -- load init from disk --
@@ -4042,6 +4234,9 @@ do
   k.sched.spawn(function()pre_run()ok(k)end, "[init]", 1)
 end
 
+if k.hooks.uspace then
+  k.hooks.uspace()
+end
 k.sched.loop()
 
 kio.panic("premature exit!")
