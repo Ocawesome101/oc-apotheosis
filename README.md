@@ -8,6 +8,8 @@ Clone this repository and run `assemble.sh`.  You'll need Lua 5.3 or newer, bash
 
 If you intend to do development work, run `setup.sh` first.
 
+To setup in OCVM or OCEmu, symbolically link `build` to the folder corresponding to the root drive of the emulated system.  Then, simply launch the emulator.
+
 `push-repos.sh` pushes all four repositories to GitHub.  It is intended for my personal use only.
 
 ## Project status
