@@ -25,6 +25,10 @@ If you intend to do development work, run `setup.sh` first.
       - [-] per-user permissions
       - [X] kernel API restrictions in userspace
     - [ ] at least one unmanaged filesystem driver
+    - [ ] Networking
+      - [X] minitel
+      - [ ] (?) GERTi
+      - [X] internet
   - [ ] Epitome
     - [-] services
     - [X] scripts
