@@ -1510,7 +1510,8 @@ do
 
     function fs.makeDirectory(path)
       checkArg(1, path, "string")
-      local sdir, dend = path:match("(.+)/(.-)")
+      while path:sub(-1) == "/" do path = path:sub(1,-2) end
+      local sdir, dend = path:match("(.+)/(.+)$")
       sdir = sdir or "/"
       dend = dend~=""and dend or path
       local node, dir = vfs.resolve(sdir)

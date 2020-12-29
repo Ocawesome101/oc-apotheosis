@@ -23,6 +23,7 @@ for i=1, #args, 1 do
     io.stderr:write(args[i], ": file already exists\n")
     os.exit(1)
   end
+
   local ok, err = fs.makeDirectory(path)
   if not ok and err then
     io.stderr:write(err, "\n")
