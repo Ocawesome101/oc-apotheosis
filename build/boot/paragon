@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.8.7-dev",
-  built   = "2020/12/28",
+  built   = "2020/12/29",
   builder = "ocawesome101@nil"
 }
 
@@ -2019,6 +2019,20 @@ function bit32.rshift(x, disp)
 end
     ]], "=(bit32)", "t", _G)()
   end
+end
+
+-- automatic card dock support --
+
+do
+  local _CD_TYPE = "carddock"
+  for k, v in component.list(_CD_TYPE) do
+    component.invoke(k, "bindComponent")
+  end
+  k.evt.register("component_added", function(_, a, t)
+    if t == _CD_TYPE then
+      component.invoke(a, "bindComponent")
+    end
+  end)
 end
 
 kio.dmesg(kio.loglevels.INFO, "ksrc/misc/ec25519.lua")
