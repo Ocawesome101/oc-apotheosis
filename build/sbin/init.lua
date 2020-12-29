@@ -31,9 +31,17 @@ function log(col, msg)
   end
   return io.write(string.format("\27[%dm* \27[97m%s\n", col + 60, msg))
 end
-k.io.hide()
+k.io.redir(print)
 
 log(34, string.format("Welcome to \27[92m%s \27[97mversion \27[94m%s\27[97m", _INFO.name, _INFO.version))
+
+-- signal handling --
+
+do
+  local process = require("process")
+  process.sethandler(process.signals.SIGTERM, function()end)
+  process.sethandler(process.signals.SIGKILL, function()end)
+end
 
 -- services --
 
@@ -155,6 +163,15 @@ do
       end
     end
     return runlevel
+  end
+
+  local sd = computer.shutdown
+  function computer.shutdown(r)
+    if require("users").user() ~= 0 then
+      return nil, "only root can do that"
+    end
+    computer.runlevel(0)
+    sd(r)
   end
 end
 

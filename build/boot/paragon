@@ -205,8 +205,9 @@ function kio.dmesg(level, msg)
   return true
 end
 
-function kio.hide()
-  if kargs.loglevel < 3 then kargs.loglevel = 3 end
+function kio.redir(f)
+  checkArg(1, f, "function")
+  kio.console = f
 end
 
 do
@@ -1191,6 +1192,10 @@ do
     local upt = computer.uptime()
     for pid, proc in pairs(procs) do
       if not proc.stopped then -- don't use timeouts from stopped processes
+        if proc.deadline < 0 then
+          max = 0
+          break
+        end
         if upt - proc.deadline < max then
           max = upt - proc.deadline
         end
@@ -1239,6 +1244,61 @@ do
     kio.panic("All processes died!")
   end
   k.sched = s
+
+  k.hooks.add("shutdown", function()
+    kio.dmesg("sending SIGTERM to all processes")
+    for pid, proc in pairs(procs) do
+      proc:handle(process.signals.SIGTERM)
+    end
+    kio.dmesg("waiting 1s for processes to stop")
+    local max = computer.uptime() + 1
+    repeat
+      computer.pullSignal(max - computer.uptime())
+    until computer.uptime() >= max
+    kio.dmesg("sending SIGKILL to all processes")
+    for pid, proc in pairs(procs) do
+      proc:handle(process.signals.SIGKILL)
+    end
+  end)
+
+  do
+    local prev_stopped, lID, lID2, slept
+    k.hooks.add("sleep", function()
+      prev_stopped = {}
+      kio.dmesg("registering wakeup listeners")
+      lID = k.evt.register("key_down", function()
+        k.hooks.wakeup()
+      end)
+      lID2 = k.evt.register("touch", function()
+        k.hooks.wakeup()
+      end)
+      kio.dmesg("suspending all processes")
+      for pid, proc in pairs(procs) do
+        if proc.stopped then
+          prev_stopped[pid] = true
+        else
+          proc:handle(process.signals.SIGSTOP)
+        end
+      end
+      kio.dmesg("turning off screens")
+      for addr in component.list("screen", true) do
+        component.invoke(addr, "turnOff")
+      end
+    end)
+
+    k.hooks.add("wakeup", function()
+      k.evt.unregister(lID)
+      k.evt.unregister(lID2)
+      for addr in component.list("screen", true) do
+        component.invoke(addr, "turnOn")
+      end
+      for pid, proc in pairs(procs) do
+        if not prev_stopped[pid] then
+          proc:handle(process.signals.SIGCONT)
+        end
+      end
+    end)
+  end
 
   k.hooks.add("sandbox", function()
     -- userspace process api
@@ -1320,7 +1380,7 @@ do
       checkArg(1, n, "number")
       local max = computer.uptime() + n
       repeat
-        coroutine.yield()
+        coroutine.yield(max - computer.uptime())
       until computer.uptime() >= max
       return true
     end
@@ -1477,7 +1537,9 @@ do
       for i=1, args.n, 1 do
         args[i] = tostring(args[i])
       end
-      io.stdout:write(table.concat(args, "\t") .. "\n")
+      if io.stdout.write then
+        io.stdout:write(table.concat(args, "\t") .. "\n")
+      end
       return true
     end
   end)
@@ -1554,7 +1616,7 @@ kio.dmesg(kio.loglevels.INFO, "ksrc/exec/px.lua")
 
 -- basic event listeners
 
-kio.dmesg(kio.loglevels.INFO, "ksrc/misc/event.lua")
+kio.dmesg(kio.loglevels.INFO, "ksrc/event.lua")
 
 do
   local event = {}
@@ -1576,14 +1638,6 @@ do
     end
 
     return table.unpack(sig)
-  end
-  do
-    local p = computer.pushSignal
-    function computer.pushSignal(...)
-      local s = table.pack(...)
-      --kio.dmesg(kio.loglevels.DEBUG, string.format("PUSH %s %s %s", tostring(s[1]), tostring(s[2]), tostring(s[3])))
-      p(...)
-    end
   end
 
   function event.register(sig, func)
@@ -3870,6 +3924,21 @@ k.hooks.add("sandbox", function()
   end
 end)
 
+-- power management-ish; specifically sleep-mode --
+
+do
+  k.hooks.add("sandbox", function()
+    k.sb.package.loaded.pwman = {
+      suspend = function()
+        if k.security.users.user() ~= 0 then
+          return nil, "only root can do that"
+        end
+        k.hooks.sleep()
+      end
+    }
+  end)
+end
+
 -- sandbox --
 
 kio.dmesg("ksrc/sandbox.lua")
@@ -3911,7 +3980,8 @@ do
   k.iomt = nil
   k.hooks.sandbox(iomt)
   function sb.package.loaded.computer.shutdown(rb)
-    k.hooks.shutdown()
+    k.io.dmesg("running shutdown hooks")
+    if k.hooks.shutdown then k.hooks.shutdown() end
     computer.shutdown(rb)
   end
 end
