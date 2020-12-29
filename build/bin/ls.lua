@@ -49,7 +49,7 @@ for i=1, #args, 1 do
     end
     formatted = formatted .. name .. ":\n"
   end
-  local dir = paths.resolve(args[i])
+  local dir = paths.resolve(args[i]) or args[i]
 
   local dat = fs.stat(dir)
   if not dat then

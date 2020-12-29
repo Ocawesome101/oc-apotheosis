@@ -38,6 +38,8 @@ for i, page in ipairs(args) do
       end
     end
   end
+  io.stderr:write("no manual entry for ", page, "\n")
+  os.exit(1)
   ::cont::
 end
 
