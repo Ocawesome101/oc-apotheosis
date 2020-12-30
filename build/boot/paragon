@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.8.7-dev",
-  built   = "2020/12/29",
+  built   = "2020/12/30",
   builder = "ocawesome101@nil"
 }
 
@@ -3841,6 +3841,7 @@ k.hooks.add("sandbox", function()
     sha3 = k.sb.sha3,
     math = k.sb.math,
     pipe = {create = k.io.pipe},
+    uuid = k.sb.k.uuid,
     event = table.copy(k.evt),
     table = k.sb.table,
     users = k.sb.security.users,

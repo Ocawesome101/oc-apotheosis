@@ -155,7 +155,7 @@ end
 
 function net.listen(port)
  repeat
-  _, from, rport, data = event.pull("net_msg")
+  _, from, rport, data = uevent.filter("net_msg")
  until rport == port and data == "openstream"
  local nport = math.random(net.minport,net.maxport)
  local sclose = net.genPacketID()
