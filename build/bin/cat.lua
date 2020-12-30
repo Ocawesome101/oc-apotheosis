@@ -22,12 +22,7 @@ for i, file in ipairs(args) do
     io.stderr:write("cat: ", err, "\n")
     os.exit(1)
   end
-  -- default buffer size is 512, this might be too small
-  handle.bufferSize = 2048
-  repeat
-    local chunk = handle:read(64)
-    if chunk then io.write(chunk) end
-  until not chunk
+  io.write(handle:read("a"))
 end
 
 io.write("\n")

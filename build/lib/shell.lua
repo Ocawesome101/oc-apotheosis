@@ -81,7 +81,30 @@ shell.builtins = {
   pwd = function()
     print(os.getenv("PWD"))
     os.exit(0)
-  end
+  end,
+  kill = function(...)
+    local args, opts = require("argp").parse(...)
+    if #args == 0 or opts.help or not (tonumber(args[1])) then
+      io.stderr:write([[
+usage: kill PID
+  or:  kill -SIGNAL PID
+Kills the specified PID.]])
+      os.exit(1)
+    end
+    local process = require("process")
+    local try_sig = next(opts) or "SIGTERM"
+    local signal = process.signals[try_sig]
+    if not signal then
+      io.stderr:write("kill: invalid signal ", try_sig, "\n")
+      os.exit(1)
+    end
+    local ok, err = process.signal(tonumber(args[1]), signal)
+    if not ok and err then
+      io.stderr:write("kill: " .. tostring(err) .. "\n")
+      os.exit(2)
+    end
+    os.exit(0)
+  end,
 }
 
 local function percent(s)

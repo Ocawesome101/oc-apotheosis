@@ -46,6 +46,7 @@ end
 -- services --
 
 do
+  local users = require("users")
   local process = require("process")
   local running = {}
 
@@ -57,6 +58,9 @@ do
   end
 
   function svc.start(s)
+    if users.user() ~= 0 then
+      return nil, "permission denied"
+    end
     if running[s] and process.info(running[s]) then
       return true
     end
@@ -71,6 +75,9 @@ do
   end
 
   function svc.stop(s)
+    if users.user() ~= 0 then
+      return nil, "permission denied"
+    end
     if not running[s] then
       return true
     end
