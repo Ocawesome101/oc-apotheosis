@@ -18,7 +18,6 @@ local function init(socket)
   buffered.tty = true
   io.input(buffered)
   io.output(buffered)
-  io.stderr = buffered
   spawn_getty()
 end
 

@@ -21,15 +21,10 @@ function net.genPacketID()
 end
 
 function net.usend(to,port,data,npID)
- checkArg(1, to, "string")
- checkArg(2, port, "number")
- checkArg(3, data, "string")
- checkArg(4, npID, "string")
  computer.pushSignal("net_send",0,to,port,data,npID)
 end
 
 function net.rsend(to,port,data,block)
-  checkArg(4, block, "boolean", "nil")
  local pid, stime = net.genPacketID(), computer.uptime() + net.streamdelay
  computer.pushSignal("net_send",1,to,port,data,pid)
  if block then return pid end
@@ -47,9 +42,6 @@ end
 -- ordered packet delivery, layer 4?
 
 function net.send(to,port,ldata)
- checkArg(1, to, "string")
- checkArg(2, port, "number")
- checkArg(3, ldata, "string")
  local tdata = {}
  if ldata:len() > net.mtu then
   for i = 1, ldata:len(), net.mtu do
@@ -125,13 +117,11 @@ local function socket(addr,port,sclose)
 end
 
 function net.open(to,port)
- checkArg(1, to, "string")
- checkArg(2, port, "number")
  if not net.rsend(to,port,"openstream") then return false, "no ack from host" end
  local st = computer.uptime()+net.streamdelay
  local est = false
  while true do
-  local _,from,rport,data = event.pull(net.streamdelay)
+  local _,from,rport,data = event.pull(st - computer.uptime())
   if to == from and rport == port then
    if tonumber(data) then
     est = true

@@ -27,7 +27,7 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.8.7-dev",
-  built   = "2020/12/30",
+  built   = "2020/12/31",
   builder = "ocawesome101@nil"
 }
 
@@ -782,7 +782,7 @@ do
       if k.security.users.user() ~= 0 then
         error(string.format("component.%s: permission denied", m))
       end
-      if m == "proxy" then
+      --[[if m == "proxy" then
         return function(...)
           local prx = assert(component.proxy(...))
           local new = setmetatable({}, {__index = function(_, k)
@@ -798,7 +798,7 @@ do
             end
           end})
         end
-      end
+      end]]
       return component[m]
     end, __metatable = {}})
   end)
@@ -2897,11 +2897,19 @@ do
   local pqueue = {}
 
   local log
+  local function concat(...)
+    local args = table.pack(...)
+    local ret = ""
+    for i=1, args.n, 1 do
+      ret = ret .. tostring(args[i]) .. " "
+    end
+    return ret
+  end
   local function dprint(...)
     if cfg.debug then
-      log = log or io.open("/mtel-dbg.log", "a")
+      log = log or io.open("/mtel-dbg.log", "a") or io.open("/mtel-dbg.log", "w")
       if log then
-        log:write(table.concat({...}, " ").."\n")
+        log:write(concat(...).."\n")
         log:flush()
       end
     end
@@ -3054,8 +3062,8 @@ do
 
   local function ppthread()
     while true do
-      coroutine.yield(0.5)
       packetPusher()
+      coroutine.yield(0.5)
     end
   end
 
