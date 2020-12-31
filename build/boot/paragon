@@ -1398,18 +1398,20 @@ do
     return true
   end
 
+  local hname = "localhost"
   function h.get()
     local names = {}
     k.hooks.hnget(names)
-    return names
+    return names.minitel or names.standard or names.gerti or hname or "localhost"
   end
 
   k.hooks.add("hnset", function(n)
     k.sched.getinfo().env.HOSTNAME = n
+    hname = n
   end)
 
   k.hooks.add("hnget", function(t)
-    t.standard = (k.sched.getinfo() or {env={}}).env.HOSTNAME or "localhost"
+    t.standard = hname or (k.sched.getinfo() or {env={}}).env.HOSTNAME or "localhost"
   end)
 
   k.hostname = h
@@ -2022,12 +2024,11 @@ end
 -- automatic card dock support --
 
 do
-  local _CD_TYPE = "carddock"
-  for k, v in component.list(_CD_TYPE) do
+  for k, v in component.list("carddock") do
     component.invoke(k, "bindComponent")
   end
   k.evt.register("component_added", function(_, a, t)
-    if t == _CD_TYPE then
+    if t == "carddock" then
       component.invoke(a, "bindComponent")
     end
   end)
@@ -2890,7 +2891,9 @@ do
 
   cfg.sroutes = {}
   local rcache = setmetatable({}, {__index = cfg.sroutes})
+  local pcache = {}
   cfg.rctime = 15
+  cfg.pctime = 15
   local pqueue = {}
 
   local log
@@ -2899,6 +2902,7 @@ do
       log = log or io.open("/mtel-dbg.log", "a")
       if log then
         log:write(table.concat({...}, " ").."\n")
+        log:flush()
       end
     end
   end
@@ -2907,7 +2911,13 @@ do
   end)
 
   local hostname = k.hostname.get()
-  hostname = hostname.minitel or hostname.standard
+  k.hooks.add("hnset", function(name)
+    hostname = name or computer.address():sub(1,4)
+  end)
+
+  k.hooks.add("hnget", function(names)
+    names.minitel = hostname
+  end)
 
   local modems = {}
   for a, t in component.list("modem", true) do
@@ -2961,8 +2971,8 @@ do
     end
     for k,v in pairs(pcache) do
       if v < computer.uptime() then
-      pcache[k] = nil
-      dprint("pruned "..k.." from packet cache")
+        pcache[k] = nil
+        dprint("pruned "..k.." from packet cache")
       end
     end
   end
@@ -3044,7 +3054,7 @@ do
 
   local function ppthread()
     while true do
-      coroutine.yield(0)
+      coroutine.yield(0.5)
       packetPusher()
     end
   end
