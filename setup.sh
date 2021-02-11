@@ -3,7 +3,7 @@
 
 switch () {
   cd $1
-  git switch master
+  git checkout master
   cd ..
 }
 
