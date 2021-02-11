@@ -27,8 +27,8 @@ end
 _G._KINFO = {
   name    = "Paragon",
   version = "0.8.7-dev",
-  built   = "2020/12/31",
-  builder = "ocawesome101@nil"
+  built   = "2021/02/11",
+  builder = "oldmac@nil"
 }
 
 -- kernel i/o
@@ -1128,7 +1128,7 @@ do
       name = name,
       parent = current,
       priority = priority or math.huge,
-      env = p and table.copy(p.env) or {},
+      env = p and table.copy(p.env) or {TERM="paragon"},
       stdin = p and io.input() or {},
       stdout = p and io.output() or {},
       stderr = p and io.stderr or {},
@@ -3682,7 +3682,7 @@ function vt.new(gpu, screen)
         if char == 13 and not raw then
           stream:write("\n")
         elseif char == 8 and not raw then
-          stream:write("\8")
+          stream:write("\8 \8")
         elseif char < 32 and char > 0 then
           -- i n l i n e   l o g i c   f t w
           stream:write("^"..string.char(

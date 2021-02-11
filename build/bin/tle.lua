@@ -10,7 +10,6 @@ function vt.set_cursor(x, y)
 end
 
 function vt.get_cursor()
-  --os.execute("stty raw -echo")
   io.write("\27[6n")
   local resp = ""
   repeat
@@ -18,7 +17,6 @@ function vt.get_cursor()
     resp = resp .. c
   until c == "R"
   local y, x = resp:match("\27%[(%d+);(%d+)R")
-  --os.execute("stty sane")
   return tonumber(x), tonumber(y)
 end
 
@@ -43,7 +41,9 @@ local substitutions = {
   A = "up",
   B = "down",
   C = "right",
-  D = "left"
+  D = "left",
+  ["5"] = "pgUp",
+  ["6"] = "pgDown",
 }
 
 -- this is a neat party trick.  works for all alphabetical characters.
@@ -88,12 +88,294 @@ function kbd.get_key()
   --os.execute("stty sane")
   return key, flags
 end
+local rc
+-- VLERC parsing
+-- yes, this is for TLE.  yes, it's using VLERC.  yes, this is intentional.
+
+rc = {syntax=true,cachelastline=true}
+
+do
+  local function split(line)
+    local words = {}
+    for word in line:gmatch("[^ ]+") do
+      words[#words + 1] = word
+    end
+    return words
+  end
+
+  local function pop(t) return table.remove(t, 1) end
+
+  local fields = {
+    bi = "builtin",
+    bn = "blank",
+    ct = "constant",
+    cm = "comment",
+    is = "insert",
+    kw = "keyword",
+    kc = "keychar",
+    st = "string",
+  }
+  local colors = {
+    black = 30,
+    gray = 90,
+    lightGray = 37,
+    red = 91,
+    green = 92,
+    yellow = 93,
+    blue = 94,
+    magenta = 95,
+    cyan = 96,
+    white = 97
+  }
+  
+  local function parse(line)
+    local words = split(line)
+    if #words < 1 then return end
+    local c = pop(words)
+    -- color keyword 32
+    -- co kw green
+    if c == "color" or c == "co" and #words >= 2 then
+      local field = pop(words)
+      field = fields[field] or field
+      local color = pop(words)
+      if colors[color] then
+        color = colors[color]
+      else
+        color = tonumber(color)
+      end
+      if not color then return end
+      rc[field] = color
+    elseif c == "cachelastline" then
+      local arg = pop(words)
+      arg = (arg == "yes") or (arg == "true") or (arg == "on")
+      rc.cachelastline = arg
+    elseif c == "syntax" then
+      local arg = pop(words)
+      rc.syntax = (arg == "yes") or (arg == "true") or (arg == "on")
+    end
+  end
+
+  local home = os.getenv("HOME")
+  local handle = io.open(home .. "/.vlerc", "r")
+  if not handle then goto anyways end
+  for line in handle:lines() do
+    parse(line)
+  end
+  handle:close()
+  ::anyways::
+end
+-- library for basic syntax highlighting definitions --
+
+local syntax = {}
+
+do
+  local 
+  keyword_color,
+  builtin_color,
+  const_color,
+  str_color,
+  cmt_color,
+  kchar_color
+  =
+  rc.keyword or 91,
+  rc.builtin or 92,
+  rc.constant or 95,
+  rc.string or 93,
+  rc.comment or 90,
+  rc.keychar or 94
+
+  local function esc(n)
+    return string.format("\27[%dm", n)
+  end
+
+  keyword_color = esc(keyword_color)
+  builtin_color = esc(builtin_color)
+  kchar_color = esc(kchar_color)
+  const_color = esc(const_color)
+  str_color = esc(str_color)
+  cmt_color = esc(cmt_color)
+  
+  local numpat = {}
+  local keywords = {}
+  local keychars = {}
+  local constpat = {}
+  local functions = {}
+  local constants = {}
+  local cprefix = "#"
+  local strings = true
+  local function split(l)
+    local words = {}
+    for w in l:gmatch("[^ ]+") do
+      words[#words + 1] = w
+    end
+    return words
+  end
+  local function parse_line(line)
+    local words = split(line)
+    local cmd = words[1]
+    if not cmd then
+      return
+    elseif cmd == "keychars" then
+      for i=2, #words, 1 do
+        for c in words[i]:gmatch(".") do
+          keychars[#keychars + 1] = c
+        end
+      end
+    elseif cmd == "comment" then
+      cprefix = words[2] or cprefix
+    elseif cmd == "keywords" then
+      for i=2, #words, 1 do
+        keywords[words[i]] = true
+      end
+    elseif cmd == "const" then
+      for i=2, #words, 1 do
+        constants[words[i]] = true
+      end
+    elseif cmd == "builtin" then
+      for i=2, #words, 1 do
+        functions[words[i]] = true
+      end
+    elseif cmd == "constpat" and words[2] then
+      constpat[#constpat + 1] = words[2]
+    elseif cmd == "strings" then
+      if words[2] == "on" or words[2] == "true" then
+        strings = true
+      elseif words[2] == "off" or words[2] == "false" then
+        strings = false
+      end
+    end
+  end
+
+  local function match_constant(w)
+    if constants[w] then return true end
+    for i=1, #constpat, 1 do
+      if w:match(constpat[i]) then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function mkhighlighter()
+    local kchars = ""
+    if #keychars > 0 then
+      kchars = "[%" .. table.concat(keychars, "%") .. "]"
+    end
+    local function words(ln)
+      local words = {}
+      local ws, word = "", ""
+      for char in ln:gmatch(".") do
+        if (char:match(kchars) and #kchars > 0) or char:match("[\"'%s,]") then
+          ws = char
+          if #word > 0 then words[#words + 1] = word end
+          if #ws > 0 then words[#words + 1] = ws end
+          word = ""
+          ws = ""
+        else
+          word = word .. char
+        end
+      end
+      if #word > 0 then words[#words + 1] = word end
+      if #ws > 0 then words[#words + 1] = ws end
+      return words
+    end
+
+    local function highlight(line)
+      local ret = "\27[39m"
+      local in_str = false
+      local in_cmt = false
+      for i, word in ipairs(words(line)) do
+        if word:match("[\"']") and strings and not in_str and not in_cmt then
+          in_str = true
+          ret = ret .. str_color .. word
+        elseif in_str then
+          ret = ret .. word
+          if word:match("[\"']") then
+            ret = ret .. "\27[39m"
+            in_str = false
+          end
+        elseif word:sub(1,#cprefix) == cprefix then
+          in_cmt = true
+          ret = ret .. cmt_color .. word
+        elseif in_cmt then
+          ret = ret .. word
+        else
+          local esc = (keywords[word] and keyword_color) or
+                      (functions[word] and builtin_color) or
+                      (match_constant(word) and const_color) or
+                      (#kchars > 0 and word:match(kchars) and kchar_color) or ""
+          ret = ret .. esc .. word .. (esc ~= "" and "\27[39m" or "")
+        end
+      end
+      ret = ret .. "\27[39m"
+      return ret
+    end
+
+    return highlight
+  end
+
+  function syntax.load(file)
+    local handle = io.open(file)
+    for line in handle:lines() do
+      parse_line(line)
+    end
+    return mkhighlighter()
+  end
+end
 
 local args = {...}
 
 local cbuf = 1
 local w, h = 1, 1
 local buffers = {}
+
+local function get_abs_path(file)
+  local pwd = os.getenv("PWD")
+  if file:sub(1,1) == "/" or not pwd then return file end
+  return string.format("%s/%s", pwd, file):gsub("[\\/]+", "/")
+end
+
+local function read_file(file)
+  local handle, err = io.open(file, "r")
+  if not handle then
+    return ""
+  end
+  local data = handle:read("a")
+  handle:close()
+  return data
+end
+
+local function write_file(file, data)
+  local handle, err = io.open(file, "w")
+  if not handle then return end
+  handle:write(data)
+  handle:close()
+end
+
+local function get_last_pos(file)
+  local abs = get_abs_path(file)
+  local pdata = read_file(os.getenv("HOME") .. "/.vle_positions")
+  local pat = abs:gsub("[%[%]%(%)%^%$%%%+%*%*]", "%%%1") .. ":(%d+)\n"
+  if pdata:match(pat) then
+    local n = tonumber(pdata:match(pat))
+    return n or 1
+  end
+  return 1
+end
+
+local function save_last_pos(file, n)
+  local abs = get_abs_path(file)
+  local escaped = abs:gsub("[%[%]%(%)%^%$%%%+%*%*]", "%%%1")
+  local pat = "(" .. escaped .. "):(%d+)\n"
+  local vp_path = os.getenv("HOME") .. "/.vle_positions"
+  local data = read_file(vp_path)
+  if data:match(pat) then
+    data = data:gsub(pat, string.format("%%1:%d\n", n))
+  else
+    data = data .. string.format("%s:%d\n", abs, n)
+  end
+  write_file(vp_path, data)
+end
 
 local commands -- forward declaration so commands and load_file can access this
 local function load_file(file)
@@ -105,10 +387,12 @@ local function load_file(file)
     buffers[n].lines[1] = ""
     return
   end
-  handle:close()
-  for line in io.lines(file) do
+  for line in handle:lines() do
     buffers[n].lines[#buffers[n].lines + 1] = (line:gsub("\n", ""))
   end
+  handle:close()
+  buffers[n].cline = math.min(#buffers[n].lines,
+    get_last_pos(get_abs_path(file)))
   if commands and commands.t then commands.t() end
 end
 
@@ -116,7 +400,9 @@ if args[1] == "--help" then
   print("usage: tle [FILE]")
   os.exit()
 elseif args[1] then
-  load_file(args[1])
+  for i=1, #args, 1 do
+    load_file(args[i])
+  end
 else
   buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 0, lines = {""}, cache = {}}
 end
@@ -161,8 +447,14 @@ local function draw_line(line_num, line_text)
   io.write(write)
 end
 
+-- dynamically getting dimensions makes the experience slightly nicer for the
+-- 2%, at the cost of a rather significant performance drop on slower
+-- terminals.  hence, I have removed it.
+--
+-- to re-enable it, just move the below line inside the draw_buffer() function.
+-- you may want to un-comment it.
+-- w, h = vt.get_term_size()
 local function draw_buffer()
-  w, h = vt.get_term_size()
   io.write("\27[39;49m")
   draw_open_buffers()
   local buffer = buffers[cbuf]
@@ -250,23 +542,27 @@ local function trim_cpos()
   end
 end
 
+
 local function try_get_highlighter()
   local ext = buffers[cbuf].name:match("%.(.-)$")
   if not ext then
     return
   end
-  local try = "/usr/share/TLE/"..ext..".lua"
-  local also_try = os.getenv("HOME").."/.local/share/TLE/"..ext..".lua"
-  local ok, ret = pcall(dofile, also_try)
+  local try = "/usr/share/VLE/"..ext..".vle"
+  local also_try = os.getenv("HOME").."/.local/share/VLE/"..ext..".vle"
+  local ok, ret = pcall(syntax.load, also_try)
   if ok then
-    print("OK", also_try)
     return ret
   else
-    io.stderr:write(ret)
-    ok, ret = pcall(dofile, try)
+    ok, ret = pcall(syntax.load, try)
     if ok then
-      print("OK", try)
       return ret
+    else
+      ok, ret = pcall(syntax.load, "syntax/"..ext..".vle")
+      if ok then
+        io.stderr:write("OKAY")
+        return ret
+      end
     end
   end
   return nil
@@ -422,7 +718,6 @@ commands = {
   n = function()
     local file_to_open = prompt("Enter file path:")
     load_file(file_to_open)
-    draw_open_buffers()
   end,
   s = function()
     local ok, err = io.open(buffers[cbuf].name, "w")
@@ -474,14 +769,24 @@ commands = {
         end
       end
     end
-    io.write("\27[2J\27[1;1H\27(r\27(L\27[m")
+    io.write("\27[2J\27[1;1H\27[m")
+    if os.getenv("TERM") == "paragon" then
+      io.write("\27(r\27(L")
+    else
+      os.execute("stty sane")
+    end
     os.exit()
   end
 }
 
 commands.t()
-io.write("\27[2J\27(R\27(l\27[8m")
-draw_open_buffers()
+io.write("\27[2J")
+if os.getenv("TERM") == "paragon" then
+  io.write("\27(R\27(l")
+else
+  os.execute("stty raw -echo")
+end
+w, h = vt.get_term_size()
 
 while true do
   draw_buffer()
@@ -498,4 +803,3 @@ while true do
   elseif #key == 1 then
     insert_character(key)
   end
-end
