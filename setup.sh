@@ -11,3 +11,4 @@ switch paragon
 switch coreutils
 switch epitome
 switch manpages
+switch tle

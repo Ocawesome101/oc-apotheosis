@@ -62,6 +62,7 @@ if [ "$UPDATE" ]; then
   update epitome
   update coreutils
   update manpages
+  update tle
   shift
 fi
 
@@ -70,10 +71,16 @@ build paragon
 log $GRN "Building Epitome init"
 build epitome
 # coreutils and manpages require no building at this time
+log $YLW "Assembling TLE"
+cd tle
+./standalone.sh
+cd ..
 
 log $GRN "Assembling"
 log $YLW "Apotheosis coreutils -> build"
 cp -r coreutils/* build/
+log $YLW "TLE -> build"
+cat tle/tle | head -n -1 > build/bin/tle.lua
 mkdir -p build/boot
 log $YLW "init.lua -> build"
 cp paragon/init.lua build/init.lua

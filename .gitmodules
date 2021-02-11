@@ -10,3 +10,6 @@
 [submodule "manpages"]
 	path = manpages
 	url = git@github.com:ocawesome101/apotheosis-manpages
+[submodule "tle"]
+	path = tle
+	url = git@github.com:ocawesome101/tle

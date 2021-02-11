@@ -12,6 +12,7 @@ push paragon
 push epitome
 push coreutils
 push manpages
+push tle
 
 git add .
 git commit

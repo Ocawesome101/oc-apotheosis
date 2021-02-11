@@ -11,6 +11,7 @@ commit paragon
 commit epitome
 commit coreutils
 commit manpages
+commit tle
 
 git add .
 git commit

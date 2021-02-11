@@ -11,3 +11,4 @@ pull paragon
 pull epitome
 pull coreutils
 pull manpages
+pull tle
