@@ -80,7 +80,7 @@ log $GRN "Assembling"
 log $YLW "Apotheosis coreutils -> build"
 cp -r coreutils/* build/
 log $YLW "TLE -> build"
-cat tle/tle | head -n -1 > build/bin/tle.lua
+cp tle/tle build/bin/tle.lua
 mkdir -p build/boot
 log $YLW "init.lua -> build"
 cp paragon/init.lua build/init.lua

@@ -164,162 +164,206 @@ do
   handle:close()
   ::anyways::
 end
--- library for basic syntax highlighting definitions --
+-- rewritten syntax highlighting engine
 
 local syntax = {}
 
 do
-  local 
-  keyword_color,
-  builtin_color,
-  const_color,
-  str_color,
-  cmt_color,
-  kchar_color
-  =
-  rc.keyword or 91,
-  rc.builtin or 92,
-  rc.constant or 95,
-  rc.string or 93,
-  rc.comment or 90,
-  rc.keychar or 94
-
   local function esc(n)
     return string.format("\27[%dm", n)
   end
-
-  keyword_color = esc(keyword_color)
-  builtin_color = esc(builtin_color)
-  kchar_color = esc(kchar_color)
-  const_color = esc(const_color)
-  str_color = esc(str_color)
-  cmt_color = esc(cmt_color)
   
-  local numpat = {}
-  local keywords = {}
-  local keychars = {}
-  local constpat = {}
-  local functions = {}
-  local constants = {}
-  local cprefix = "#"
-  local strings = true
+  local colors = {
+    keyword = esc(rc.keyword or 91),
+    builtin = esc(rc.builtin or 92),
+    constant = esc(rc.constant or 95),
+    string = esc(rc.string or 93),
+    comment = esc(rc.comment or 90),
+    keychar = esc(rc.keychar or 94),
+    operator = esc(rc.operator or rc.keychar or 94)
+  }
+  
   local function split(l)
-    local words = {}
-    for w in l:gmatch("[^ ]+") do
-      words[#words + 1] = w
+    local w = {}
+    for wd in l:gmatch("[^ ]+") do
+      w[#w+1]=wd
     end
-    return words
+    return w
   end
-  local function parse_line(line)
+  
+  local function parse_line(self, line)
     local words = split(line)
     local cmd = words[1]
     if not cmd then
       return
     elseif cmd == "keychars" then
       for i=2, #words, 1 do
-        for c in words[i]:gmatch(".") do
-          keychars[#keychars + 1] = c
-        end
+        self.keychars = self.keychars .. words[i]
       end
     elseif cmd == "comment" then
-      cprefix = words[2] or cprefix
+      self.comment = words[2] or "#"
     elseif cmd == "keywords" then
       for i=2, #words, 1 do
-        keywords[words[i]] = true
+        self.keywords[words[i]] = true
       end
     elseif cmd == "const" then
       for i=2, #words, 1 do
-        constants[words[i]] = true
+        self.constants[words[i]] = true
+      end
+    elseif cmd == "constpat" then
+      for i=2, #words, 1 do
+        self.constpat[#self.constpat+1] = words[i]
       end
     elseif cmd == "builtin" then
       for i=2, #words, 1 do
-        functions[words[i]] = true
+        self.builtins[words[i]] = true
       end
-    elseif cmd == "constpat" and words[2] then
-      constpat[#constpat + 1] = words[2]
+    elseif cmd == "operator" then
+      for i=2, #words, 1 do
+        self.operators[words[i]] = true
+      end
     elseif cmd == "strings" then
-      if words[2] == "on" or words[2] == "true" then
-        strings = true
-      elseif words[2] == "off" or words[2] == "false" then
-        strings = false
+      if words[2] == "on" then
+        self.strings = "\"'"
+      elseif words[2] == "off" then
+        self.strings = false
+      else
+        self.strings = self.strings .. (words[2] or "")
       end
     end
   end
-
-  local function match_constant(w)
-    if constants[w] then return true end
-    for i=1, #constpat, 1 do
-      if w:match(constpat[i]) then
+  
+  -- splits on keychars and spaces
+  -- groups together blocks of identical keychars
+  local function asplit(self, line)
+    local words = {}
+    local cword = ""
+    local opchars = ""
+    --for k in pairs(self.operators) do
+    --  opchars = opchars .. k
+    --end
+    --opchars = "["..opchars:gsub("[%[%]%(%)%.%+%%%$%-%?%^%*]","%%%1").."]"
+    for char in line:gmatch(".") do
+      local last = cword:sub(-1) or ""
+      if #self.keychars > 2 and char:match(self.keychars) then
+        if last == char then -- repeated keychar
+          cword = cword .. char
+        else -- time to split!
+          if #cword > 0 then words[#words+1] = cword end
+          cword = char
+        end
+      elseif #self.keychars > 2 and last:match(self.keychars) then
+        -- also time to split
+        if #cword > 0 then words[#words+1] = cword end
+        if char == " " then
+          words[#words+1]=char
+          cword = ""
+        else
+          cword = char
+        end
+      -- not the cleanest solution, but it'll do
+      elseif #last > 0 and self.operators[last .. char] then
+        if #cword > 0 then words[#words + 1] = cword:sub(1,-2) end
+        words[#words+1] = last..char
+        cword = ""
+      elseif self.strings and char:match(self.strings) then
+        if #cword > 0 then words[#words+1] = cword end
+        words[#words+1] = char
+        cword = ""
+      elseif char == " " then
+        if #cword > 0 then words[#words+1] = cword end
+        words[#words+1] = " "
+        cword = ""
+      else
+        cword = cword .. char
+      end
+    end
+    
+    if #cword > 0 then
+      words[#words+1] = cword
+    end
+    
+    return words
+  end
+  
+  local function isconst(self, word)
+    if self.constants[word] then return true end
+    for i=1, #self.constpat, 1 do
+      if word:match(self.constpat[i]) then
         return true
       end
     end
     return false
   end
-
-  local function mkhighlighter()
-    local kchars = ""
-    if #keychars > 0 then
-      kchars = "[%" .. table.concat(keychars, "%") .. "]"
-    end
-    local function words(ln)
-      local words = {}
-      local ws, word = "", ""
-      for char in ln:gmatch(".") do
-        if (char:match(kchars) and #kchars > 0) or char:match("[\"'%s,]") then
-          ws = char
-          if #word > 0 then words[#words + 1] = word end
-          if #ws > 0 then words[#words + 1] = ws end
-          word = ""
-          ws = ""
-        else
-          word = word .. char
-        end
-      end
-      if #word > 0 then words[#words + 1] = word end
-      if #ws > 0 then words[#words + 1] = ws end
-      return words
-    end
-
-    local function highlight(line)
-      local ret = "\27[39m"
-      local in_str = false
-      local in_cmt = false
-      for i, word in ipairs(words(line)) do
-        if word:match("[\"']") and strings and not in_str and not in_cmt then
-          in_str = true
-          ret = ret .. str_color .. word
-        elseif in_str then
-          ret = ret .. word
-          if word:match("[\"']") then
-            ret = ret .. "\27[39m"
-            in_str = false
-          end
-        elseif word:sub(1,#cprefix) == cprefix then
-          in_cmt = true
-          ret = ret .. cmt_color .. word
-        elseif in_cmt then
-          ret = ret .. word
-        else
-          local esc = (keywords[word] and keyword_color) or
-                      (functions[word] and builtin_color) or
-                      (match_constant(word) and const_color) or
-                      (#kchars > 0 and word:match(kchars) and kchar_color) or ""
-          ret = ret .. esc .. word .. (esc ~= "" and "\27[39m" or "")
-        end
-      end
-      ret = ret .. "\27[39m"
-      return ret
-    end
-
-    return highlight
+  
+  local function isop(self, word)
+    return self.operators[word]
   end
-
-  function syntax.load(file)
-    local handle = io.open(file)
-    for line in handle:lines() do
-      parse_line(line)
+  
+  local function iskeychar(self, word)
+    return #self.keychars > 2 and not not word:match(self.keychars)
+  end
+  
+  local function highlight(self, line)
+    local ret = ""
+    local strings, comment = self.strings, self.comment
+    local words = asplit(self, line)
+    local in_str, in_cmt
+    for i, word in ipairs(words) do
+      --io.stderr:write(word, "\n")
+      if strings and word:match(strings) and not in_str and not in_cmt then
+        in_str = word:sub(1,1)
+        ret = ret .. colors.string .. word
+      elseif in_str then
+        ret = ret .. word
+        if word == in_str then
+          ret = ret .. "\27[39m"
+          in_str = false
+        end
+      elseif word:sub(1,#comment) == comment then
+        in_cmt = true
+        ret = ret .. colors.comment .. word
+      elseif in_cmt then
+        ret = ret .. word
+      else
+        local esc = (self.keywords[word] and colors.keyword) or
+                    (self.builtins[word] and colors.builtin) or
+                    (isconst(self, word) and colors.constant) or
+                    (isop(self, word) and colors.operator) or
+                    (iskeychar(self, word) and colors.keychar) or
+                    ""
+        ret = string.format("%s%s%s%s", ret, esc, word,
+          (esc~=""and"\27[39m"or""))
+      end
     end
-    return mkhighlighter()
+    ret = ret .. "\27[39m"
+    return ret
+  end
+  
+  function syntax.load(file)
+    local new = {
+      keywords = {},
+      operators = {},
+      constants = {},
+      constpat = {},
+      builtins = {},
+      keychars = "",
+      comment = "#",
+      strings = "\"'",
+      highlighter = highlight
+    }
+    local handle = assert(io.open(file, "r"))
+    for line in handle:lines() do
+      parse_line(new, line)
+    end
+    if new.strings then
+      new.strings = string.format("[%s]", new.strings)
+    end
+    new.keychars = string.format("[%s]", (new.keychars:gsub(
+      "[%[%]%(%)%.%+%%%$%-%?%^%*]", "%%%1")))
+    return function(line)
+      return new:highlighter(line)
+    end
   end
 end
 
@@ -381,18 +425,20 @@ local commands -- forward declaration so commands and load_file can access this
 local function load_file(file)
   local n = #buffers + 1
   buffers[n] = {name=file, cline = 1, cpos = 0, scroll = 1, lines = {}, cache = {}}
-  local handle = io.open(file)
+  local handle = io.open(file, "r")
   cbuf = n
   if not handle then
     buffers[n].lines[1] = ""
     return
   end
   for line in handle:lines() do
-    buffers[n].lines[#buffers[n].lines + 1] = (line:gsub("\n", ""))
+    buffers[n].lines[#buffers[n].lines + 1] =
+                                     (line:gsub("[\r\n]", ""):gsub("\t", "  "))
   end
   handle:close()
   buffers[n].cline = math.min(#buffers[n].lines,
     get_last_pos(get_abs_path(file)))
+  buffers[n].scroll = math.min(1, buffers[n].cline - h)
   if commands and commands.t then commands.t() end
 end
 
@@ -404,7 +450,7 @@ elseif args[1] then
     load_file(args[i])
   end
 else
-  buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 0, lines = {""}, cache = {}}
+  buffers[1] = {name="<new>", cline = 1, cpos = 0, scroll = 1, lines = {""}, cache = {}}
 end
 
 local function truncate_name(n, bn)
@@ -419,14 +465,17 @@ end
 local function draw_open_buffers()
   vt.set_cursor(1, 1)
   local draw = "\27[2K\27[46m"
+  local dr = ""
   for i=1, #buffers, 1 do
+    dr = dr .. truncate_name(buffers[i].name, i) .. "   "
     draw = draw .. "\27[36m \27["..(i == cbuf and "107" or "46")..";30m " .. truncate_name(buffers[i].name, i) .. " \27[46m"
   end
-  draw = draw .. "\27[K\27[39;49m"
-  if #draw:gsub("\27%[.+m", "") > w then
+  local diff = string.rep(" ", w - #dr)
+  draw = draw .. "\27[46m" .. diff .. "\27[39;49m"
+  if #dr:gsub("\27%[[%d.]+m", "") > w then
     draw = draw:sub(1, w)
   end
-  io.write(draw)--, "\n\27[G\27[2K\27[36m", string.rep("-", w))
+  io.write(draw, "\27[39;49m")--, "\n\27[G\27[2K\27[36m", string.rep("-", w))
 end
 
 local function draw_line(line_num, line_text)
@@ -542,7 +591,6 @@ local function trim_cpos()
   end
 end
 
-
 local function try_get_highlighter()
   local ext = buffers[cbuf].name:match("%.(.-)$")
   if not ext then
@@ -637,13 +685,15 @@ local function prompt(text)
                                                           (box_w - 2) - #inbuf))
     vt.set_cursor(box_x, box_y + 2)
     io.write("\27[46m", string.rep(" ", box_w))
+    vt.set_cursor(box_x + 1 + math.min(box_w - 2, #inbuf), box_y + 1)
   end
   repeat
     redraw()
     local c, f = kbd.get_key()
-    if c == "backspace" then
+    f = f or {}
+    if c == "backspace" or (f.ctrl and c == "h") then
       inbuf = inbuf:sub(1, -2)
-    elseif not f then
+    elseif not (f.ctrl or f.alt) then
       inbuf = inbuf .. c
     end
   until (c == "m" and (f or {}).ctrl)
@@ -652,6 +702,7 @@ local function prompt(text)
   return inbuf
 end
 
+local prev_search
 commands = {
   b = function()
     if cbuf < #buffers then
@@ -667,11 +718,18 @@ commands = {
   end,
   f = function()
     local search_pattern = prompt("Search pattern:")
-    -- TODO: implement successive searching
+    if #search_pattern == 0 then search_pattern = prev_search end
+    prev_search = search_pattern
+    for i = buffers[cbuf].cline + 1, #buffers[cbuf].lines, 1 do
+      if buffers[cbuf].lines[i]:match(search_pattern) then
+        commands.g(i)
+        return
+      end
+    end
     for i = 1, #buffers[cbuf].lines, 1 do
       if buffers[cbuf].lines[i]:match(search_pattern) then
         commands.g(i)
-        break
+        return
       end
     end
   end,
@@ -729,6 +787,7 @@ commands = {
       ok:write(buffers[cbuf].lines[i], "\n")
     end
     ok:close()
+    save_last_pos(buffers[cbuf].name, buffers[cbuf].cline)
     buffers[cbuf].unsaved = false
   end,
   w = function()
@@ -779,10 +838,13 @@ commands = {
   end
 }
 
-commands.t()
+for i=1, #buffers, 1 do
+  cbuf = i
+  buffers[cbuf].highlighter = try_get_highlighter()
+end
 io.write("\27[2J")
 if os.getenv("TERM") == "paragon" then
-  io.write("\27(R\27(l")
+  io.write("\27(R\27(l\27[8m")
 else
   os.execute("stty raw -echo")
 end
@@ -803,3 +865,4 @@ while true do
   elseif #key == 1 then
     insert_character(key)
   end
+end
