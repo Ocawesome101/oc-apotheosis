@@ -73,7 +73,7 @@ build epitome
 # coreutils and manpages require no building at this time
 log $YLW "Assembling TLE"
 cd tle
-./standalone.sh
+./standalone.lua
 cd ..
 
 log $GRN "Assembling"
