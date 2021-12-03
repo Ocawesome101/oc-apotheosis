@@ -508,6 +508,9 @@ end
 -- w, h = vt.get_term_size()
 local function draw_buffer()
   io.write("\27[39;49m")
+  if os.getenv("TERM") == "cynosure" then
+    io.write("\27?14c")
+  end
   draw_open_buffers()
   local buffer = buffers[cbuf]
   local top_line = buffer.scroll
@@ -519,6 +522,9 @@ local function draw_buffer()
       draw_line(line, buffer.lines[line])
       buffer.cache[line] = buffer.lines[line] or "~"
     end
+  end
+  if os.getenv("TERM") == "cynosure" then
+    io.write("\27?4c")
   end
 end
 
